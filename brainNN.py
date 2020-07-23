@@ -20,8 +20,10 @@ class BrainNN:
                               'weaker exponentially by this factor'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
-    SYNAPSE_CHANGE_PROBABILITY = 'Probability for a synapse weight to change in ' \
-                                 'case it provides the learning rule'
+    SYNAPSE_INCREASE_PROBABILITY = 'Probability for a synapse weight to INCREASE in ' \
+                                   'case it provides the learning rule'
+    SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
+                                   'case it provides the learning rule'
     MAX_WEIGHT_INCREASE = 'Max value the weights can increase by. If they are 0 they ' \
                           'get increased by this value'
     WEIGHTS_SUM_INTO_NEURON = 'The sum of weights that go into a single neuron.'
@@ -49,7 +51,8 @@ class BrainNN:
         SYNAPSE_DISTANCE_FACTOR: 2,
         IINS_STRENGTH_FACTOR: 5,
         SHOOT_THRESHOLD: 100,
-        SYNAPSE_CHANGE_PROBABILITY: 0.5,
+        SYNAPSE_INCREASE_PROBABILITY: 0.5,
+        SYNAPSE_DECREASE_PROBABILITY: 0.15,
         MAX_WEIGHT_INCREASE: 50,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
         WEIGHTS_SUM_INTO_NEURON: 1000,
@@ -66,7 +69,10 @@ class BrainNN:
                             for key in BrainNN.default_configuration.keys()}
 
         self.__thresh = self.__conf_args[BrainNN.SHOOT_THRESHOLD]
-        self.__change_prob = self.__conf_args[BrainNN.SYNAPSE_CHANGE_PROBABILITY]
+        self.__change_prob_increase = self.__conf_args[
+            BrainNN.SYNAPSE_INCREASE_PROBABILITY]
+        self.__change_prob_decrease = self.__conf_args[
+            BrainNN.SYNAPSE_DECREASE_PROBABILITY]
         self.__max_weight_increase = self.__conf_args[BrainNN.MAX_WEIGHT_INCREASE]
         self.__weights_sum_into_neuron = self.__conf_args[BrainNN.WEIGHTS_SUM_INTO_NEURON]
 
@@ -383,16 +389,16 @@ class BrainNN:
                     to_layer_cur_shots = self.__current_shots[dst_idxs[0]][dst_idxs[1]]
 
                     # who didn't shoot get -1 to decrease if one shots to them and they
-                    # didn't shoot. Thats why ( 2 * to_layer_cur_shots - 1 ) to make 1
+                    # didn't shoot. That's why ( 2 * to_layer_cur_shots - 1 ) to make 1
                     # to 1 and 0 to -1.
-                    update_matrix = np.outer(cur_layer_prev_shots, 2 * to_layer_cur_shots
-                                             - 1)
+                    shots_matrix = np.outer(cur_layer_prev_shots, 2 * to_layer_cur_shots
+                                            - 1)
                     # I'm afraid it would be problematic so I add the assertion here
-                    assert update_matrix.shape == (cur_layer_prev_shots.shape[0],
-                                                   to_layer_cur_shots.shape[1])
+                    assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
+                                                  to_layer_cur_shots.shape[1])
 
                     self.__synapses_matrices[cur_popul_idx][cur_layer_idx][idx] = \
-                        self.__update_synapses_matrix(update_matrix, matrix)
+                        self.__update_synapses_matrix(shots_matrix, matrix)
 
                 # Update prev_shots
                 self.__prev_shots[cur_popul_idx][cur_layer_idx] = self.__current_shots[
@@ -402,9 +408,17 @@ class BrainNN:
     def __update_synapses_matrix(self, shots_mat, cur_synapses_mat):
         # Update only on some probability. Otherwise leave the synapse unchanged by
         # setting the updation for it to zero
-        shots_mat[shots_mat != 0] *= (
+        ones_idxs = (shots_mat == 1)
+        neg_ones_idxs = (shots_mat == -1)
+
+        # Determine who will get increased by probability
+        shots_mat[ones_idxs] *= (
                 np.random.uniform(
-                    size=(np.count_nonzero(shots_mat))) < self.__change_prob)
+                    size=(np.count_nonzero(ones_idxs))) < self.__change_prob_increase)
+        # Determine who will get decreased by probability
+        shots_mat[neg_ones_idxs] *= (
+                np.random.uniform(
+                    size=(np.count_nonzero(neg_ones_idxs))) < self.__change_prob_decrease)
 
         weighted_synapses_matrix = np.multiply(shots_mat, cur_synapses_mat)
         updated_mat = self.__create_update_mat(

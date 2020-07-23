@@ -155,6 +155,48 @@ def test_random():
     print('Time to determine synapses updating using winners remembering:', t4)
 
 
+def test_count_occurences():
+    thresh = 0.5
+    mat = np.random.standard_normal((5, 200))
+    threshed = mat > thresh
+    mat = 2 * mat - 1
+
+    N = 1000
+
+
+    def sum_with_equal():
+        ones = (mat == 1).sum()
+        negative_ones = (mat == -1).sum()
+
+
+    def sum_with_greater_lower():
+        ones = (mat > 0).sum()
+        negative_ones = (mat < 0).sum()
+
+
+    def count_zeros_with_equal():
+        ones = np.count_nonzero(mat == 1)
+        negative_ones = np.count_nonzero(mat == -1)
+
+
+    def count_zeros_with_greater_lower():
+        ones = np.count_nonzero(mat > 0)
+        negative_ones = np.count_nonzero(mat < 0)
+
+
+    n = 1000000
+    # for 100000 times it takes
+    t3 = timeit.timeit(count_zeros_with_equal, number=n)
+    print('Time to count using count_zeros_with_equal:', t3)
+    t4 = timeit.timeit(count_zeros_with_greater_lower, number=n)
+    print('Time to count using count_zeros_with_greater_lower:', t4)
+    t1 = timeit.timeit(sum_with_equal, number=n)
+    print('Time to count using sum_with_equal:', t1)
+    # it takes about half the previous
+    t2 = timeit.timeit(sum_with_greater_lower, number=n)
+    print('Time to count using sum_with_greater_lower:', t2)
+
+
 def test_imshow_size():
     window_name = 'frame'
     frame = np.zeros((700, 1500, 3))
@@ -166,8 +208,8 @@ def test_imshow_size():
 
 
 def test_imshow_color():
-    color = (0.1,0.21,0)
-    made_frame = color* np.ones((1000, 1000, 3))
+    color = (0.1, 0.21, 0)
+    made_frame = color * np.ones((1000, 1000, 3))
     img_frame = cv2.imread("test_image.jpg")
     img_frame = imutils.resize(img_frame, width=100)
 
@@ -177,4 +219,4 @@ def test_imshow_color():
 
 
 if __name__ == '__main__':
-    test_imshow_color()
+    test_count_occurences()
