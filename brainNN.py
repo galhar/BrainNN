@@ -158,50 +158,66 @@ class BrainNN:
                     for layer_to_conn_idx, layer_to_conn in enumerate(popul_to_connect):
                         # Create connections to layer "layer_to_connect" from current
                         # layer
+                        self.__create_connections_between_2_layers(layer_neurons_num,
+                                                                   layer_to_conn,
+                                                                   layer_list,
+                                                                   cur_layer_idx,
+                                                                   layer_to_conn_idx,
+                                                                   popul_idx,
+                                                                   popul_idx_to_connect,
+                                                                   mean, std,
+                                                                   popul_layers_inter_conns)
 
-                        # Don't create connections to different layers in different
-                        # populations
-                        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
-                                != popul_idx:
-                            continue
 
-                        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
-                        layer_list.append([np.random.normal(mean, std, (layer_neurons_num,
-                                                                        layer_to_conn)),
-                                           idxs])
+    def __create_connections_between_2_layers(self, layer_neurons_num, layer_to_conn,
+                                              layer_list,
+                                              cur_layer_idx,
+                                              layer_to_conn_idx, popul_idx,
+                                              popul_idx_to_connect, mean, std,
+                                              popul_layers_inter_conns):
+        # Don't create connections to different layers in different
+        # populations
+        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
+                != popul_idx:
+            return
 
-                        # Prevent self loops
-                        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
-                                == popul_idx:
-                            # Here it means the layers are the same layer
-                            # Check if it is defined to have inter-connections
-                            # Default is to have inter-connections, so if it's not
-                            # defined well it will have inter-connections
-                            if popul_layers_inter_conns and not \
-                                    popul_layers_inter_conns[ \
-                                    cur_layer_idx]:
-                                del layer_list[-1]
-                                continue
+        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
+        layer_list.append([np.random.normal(mean, std, (layer_neurons_num,
+                                                        layer_to_conn)),
+                           idxs])
 
-                            # Prevent self loops
-                            np.fill_diagonal(layer_list[-1][0], 0)
-                        else:
-                            # Here it means those are 2 different layers
-                            # Prevent IINs of one layer to shoot to another
-                            IINs_start_idx = self.__IINs_start_per_layer[popul_idx]
-                            layer_list[-1][0][IINs_start_idx:, :] = 0
-                            # Prevent excitatory neurons to shoot into other layer's IINs
-                            IINs_start_idx_to_connect = self.__IINs_start_per_layer[
-                                popul_idx_to_connect]
-                            layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
+        # Prevent self loops
+        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
+                == popul_idx:
+            # Here it means the layers are the same layer
+            # Check if it is defined to have inter-connections
+            # Default is to have inter-connections, so if it's not
+            # defined well it will have inter-connections
+            if popul_layers_inter_conns and not \
+                    popul_layers_inter_conns[ \
+                            cur_layer_idx]:
+                del layer_list[-1]
+                return
 
-                        # Weaken links between far populations, and strength inner
-                        # population connections
-                        layer_list[-1][0] *= (self.__conf_args[
-                                                  BrainNN.SYNAPSE_DISTANCE_FACTOR] ** (
-                                                      1 - abs(
-                                                  popul_idx_to_connect -
-                                                  popul_idx)))
+            # Prevent self loops
+            np.fill_diagonal(layer_list[-1][0], 0)
+        else:
+            # Here it means those are 2 different layers
+            # Prevent IINs of one layer to shoot to another
+            IINs_start_idx = self.__IINs_start_per_layer[popul_idx]
+            layer_list[-1][0][IINs_start_idx:, :] = 0
+            # Prevent excitatory neurons to shoot into other layer's IINs
+            IINs_start_idx_to_connect = self.__IINs_start_per_layer[
+                popul_idx_to_connect]
+            layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
+
+        # Weaken links between far populations, and strength inner
+        # population connections
+        layer_list[-1][0] *= (self.__conf_args[
+                                  BrainNN.SYNAPSE_DISTANCE_FACTOR] ** (
+                                      1 - abs(
+                                  popul_idx_to_connect -
+                                  popul_idx)))
 
 
     def __validate_inter_connections_format(self, popul_idx, popul_to_connect):
@@ -361,6 +377,10 @@ class BrainNN:
                     self.__synapses_matrices[cur_popul_idx][cur_layer_idx][idx] = \
                         self.__update_synapses_matrix(update_matrix, matrix)
 
+                # Update prev_shots
+                self.__prev_shots[cur_popul_idx][cur_layer_idx] = self.__current_shots[
+                    cur_popul_idx][cur_layer_idx]
+
 
     def __update_synapses_matrix(self, shots_mat, cur_synapses_mat):
         # Update only on some probability. Otherwise leave the synapse unchanged by
@@ -396,7 +416,6 @@ class BrainNN:
         parameters chosen in the beginning.
         :return:
         """
-        # TODO: DEBUG THIS FUNCTION! no way it will work for the first time
         frame = self.__visualization_frame
         neuron_size = 5
         line_thick = 1
@@ -415,42 +434,19 @@ class BrainNN:
                 neurons_gap = layer_gap_y // (len(cur_layer) + 1)
 
                 for neuron_idx, neuron in enumerate(cur_layer):
-                    location = (neuron_size + popul_idx * popul_gap + cur_layer_idx *
-                                layer_gap_x, neuron_size + cur_layer_idx * layer_gap_y +
-                                neuron_idx * neurons_gap)
+                    location = BrainNN.__calc_location(cur_layer_idx, layer_gap_x,
+                                                       layer_gap_y, neuron_idx,
+                                                       neuron_size,
+                                                       neurons_gap, popul_gap, popul_idx)
 
                     # First draw connections to all other neurons
-                    synapse_matrices = self.__synapses_matrices[popul_idx][cur_layer_idx]
+                    self.__draw_connections_from_layer(cur_layer_idx, frame, h,
+                                                       line_thick, location, neuron_idx,
+                                                       neuron_size, popul_gap, popul_idx)
 
-                    for mat, idxs in synapse_matrices:
-                        to_popul_idx, to_layer_idx = idxs
-                        to_population_neurons = self.__layers[to_popul_idx]
-
-                        layers_num = len(to_population_neurons)
-                        to_layer_gap_y = h // layers_num
-                        to_layer_gap_x = popul_gap // layers_num
-                        to_layer = to_population_neurons[to_layer_idx]
-                        to_neurons_gap = to_layer_gap_y // (len(to_layer) + 1)
-
-                        for to_neuron_idx, to_neuron in enumerate(to_layer):
-                            to_location = (neuron_size + to_popul_idx * popul_gap +
-                                           to_layer_idx * to_layer_gap_x, neuron_size +
-                                           to_layer_idx * to_layer_gap_y + to_neuron_idx
-                                           * to_neurons_gap)
-                            # First draw the connections
-                            connections_strength = mat[neuron_idx, to_neuron_idx]
-                            if connections_strength:
-                                cv2.line(frame, location, to_location,
-                                         (0, connections_strength, 0),
-                                         line_thick)
-
-                    # now draw the remaining neurons
-                    cv2.circle(frame, location, neuron_size,
-                               (int(neuron), int(neuron), int(neuron)),
-                               thickness=-1)
-                    # Show the IINs by drawing a circle around them
-                    if neuron_idx >= self.__IINs_start_per_layer[popul_idx]:
-                        cv2.circle(frame, location, neuron_size, (0, 0, 255), thickness=1)
+                    # now draw the neuron
+                    self.__draw_neuron(frame, location, neuron, neuron_idx, neuron_size,
+                                       popul_idx)
 
                     # In case of debugging, see each step
                     if debug:
@@ -459,6 +455,50 @@ class BrainNN:
 
         cv2.imshow(self.__vis_window_name, frame)
         cv2.waitKey(1)
+
+
+    def __draw_neuron(self, frame, location, neuron, neuron_idx, neuron_size, popul_idx):
+        cv2.circle(frame, location, neuron_size,
+                   (int(neuron), int(neuron), int(neuron)),
+                   thickness=-1)
+        # Show the IINs by drawing a circle around them
+        if neuron_idx >= self.__IINs_start_per_layer[popul_idx]:
+            cv2.circle(frame, location, neuron_size, (0, 0, 255), thickness=1)
+
+
+    @staticmethod
+    def __calc_location(cur_layer_idx, layer_gap_x, layer_gap_y, neuron_idx,
+                        neuron_size, neurons_gap, popul_gap, popul_idx):
+        return (neuron_size + popul_idx * popul_gap + cur_layer_idx *
+                layer_gap_x, neuron_size + cur_layer_idx * layer_gap_y +
+                neuron_idx * neurons_gap)
+
+
+    def __draw_connections_from_layer(self, cur_layer_idx, frame, h, line_thick, location,
+                                      neuron_idx, neuron_size, popul_gap, popul_idx):
+        synapse_matrices = self.__synapses_matrices[popul_idx][cur_layer_idx]
+        for mat, idxs in synapse_matrices:
+            to_popul_idx, to_layer_idx = idxs
+            to_population_neurons = self.__layers[to_popul_idx]
+
+            layers_num = len(to_population_neurons)
+            to_layer_gap_y = h // layers_num
+            to_layer_gap_x = popul_gap // layers_num
+            to_layer = to_population_neurons[to_layer_idx]
+            to_neurons_gap = to_layer_gap_y // (len(to_layer) + 1)
+
+            for to_neuron_idx, to_neuron in enumerate(to_layer):
+                to_location = BrainNN.__calc_location(to_layer_idx, to_layer_gap_x,
+                                                      to_layer_gap_y, to_neuron_idx,
+                                                      neuron_size,
+                                                      to_neurons_gap, popul_gap,
+                                                      to_popul_idx)
+                # First draw the connections
+                connections_strength = mat[neuron_idx, to_neuron_idx]
+                if connections_strength:
+                    cv2.line(frame, location, to_location,
+                             (0, connections_strength, 0),
+                             line_thick)
 
 
 if __name__ == '__main__':
