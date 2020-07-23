@@ -471,11 +471,13 @@ class BrainNN:
                                                     layer_gap_y, neuron_idx,
                                                     neuron_size,
                                                     neurons_gap, popul_gap, popul_idx)
+                    shot_flag = self.__current_shots[popul_idx][cur_layer_idx][neuron_idx]
 
                     # First draw connections to all other neurons
                     self.__draw_connections_from_layer(cur_layer_idx, frame, h,
                                                        line_thick, location, neuron_idx,
-                                                       neuron_size, popul_gap, popul_idx)
+                                                       neuron_size, popul_gap, popul_idx,
+                                                       shot_flag)
 
                     # now draw the neuron
                     self.__draw_neuron(frame, location, neuron / self.__neurons_max_res,
@@ -521,10 +523,8 @@ class BrainNN:
 
 
     def __draw_connections_from_layer(self, cur_layer_idx, frame, h, line_thick, location,
-                                      neuron_idx, neuron_size, popul_gap, popul_idx):
-        # Resolution to see in the colors of the connections
-        connections_max_res = 256
-
+                                      neuron_idx, neuron_size, popul_gap, popul_idx,
+                                      shot_flag):
         synapse_matrices = self.__synapses_matrices[popul_idx][cur_layer_idx]
         for mat, idxs in synapse_matrices:
             to_popul_idx, to_layer_idx = idxs
@@ -542,14 +542,21 @@ class BrainNN:
                                                    neuron_size,
                                                    to_neurons_gap, popul_gap,
                                                    to_popul_idx)
-                # First draw the connections
+                # Draw the connections
                 connections_strength = mat[neuron_idx, to_neuron_idx]
                 if connections_strength:
-                    # This will convert from [0,1] to [0,255], that's why the
+                    # The color will be converted from [0,1] to [0,255], that's why the
                     # normalization with the "connections_max_res"
-                    cv2.line(frame, location, to_location,
-                             (0, connections_strength / self.__connections_max_res, 0),
-                             line_thick)
+
+                    # If it shot notify it in the visualization
+                    if shot_flag:
+                        cv2.line(frame, location, to_location,
+                                 (1, 0, 0), line_thick)
+                    else:
+                        cv2.line(frame, location, to_location,
+                                 (
+                                 0, connections_strength / self.__connections_max_res, 0),
+                                 line_thick)
 
 
 if __name__ == '__main__':
