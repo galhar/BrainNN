@@ -3,6 +3,7 @@
 import numpy as np
 import timeit
 import cv2
+import imutils
 
 
 def test_sum_np_vs_python():
@@ -158,10 +159,22 @@ def test_imshow_size():
     window_name = 'frame'
     frame = np.zeros((700, 1500, 3))
     cv2.namedWindow(window_name)
-    cv2.moveWindow(window_name, 0,0)
-    cv2.imshow('frame', frame)
+    cv2.moveWindow(window_name, 0, 0)
+
+    cv2.imshow(window_name, frame)
+    cv2.waitKey()
+
+
+def test_imshow_color():
+    color = (0.1,0.21,0)
+    made_frame = color* np.ones((1000, 1000, 3))
+    img_frame = cv2.imread("test_image.jpg")
+    img_frame = imutils.resize(img_frame, width=100)
+
+    cv2.imshow('image frame', img_frame)
+    cv2.imshow('made frame', made_frame)
     cv2.waitKey()
 
 
 if __name__ == '__main__':
-    test_imshow_size()
+    test_imshow_color()
