@@ -208,7 +208,7 @@ def test_imshow_size():
 
 
 def test_imshow_color():
-    color = (0.1, 0.21, 0)
+    color = (0.4, 1, 0)
     made_frame = color * np.ones((1000, 1000, 3))
     img_frame = cv2.imread("test_image.jpg")
     img_frame = imutils.resize(img_frame, width=100)
@@ -219,4 +219,4 @@ def test_imshow_color():
 
 
 if __name__ == '__main__':
-    test_count_occurences()
+    test_imshow_color()
