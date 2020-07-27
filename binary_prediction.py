@@ -9,7 +9,7 @@ N = 5
 def get_noisy_binary_rep(val, noise_std):
     binary_represnt_list = [(val >> i) & 1 for i in range(N - 1, -1, -1)]
     binary_represnt_np = np.array(binary_represnt_list)
-    return np.random.normal(binary_represnt_np, noise_std)
+    return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
 def create_binary_input_generator():
@@ -36,6 +36,7 @@ def create_binary_input_generator():
         # If the correct node shot, raise the shot count
         if output_shots[current_num_idx] == 1:
             shots_count += 1
+            print(f"Shot on {current_num}")
 
         # If it identified the number, move on to the next one
         if shots_count >= identified_input_shots_needed:

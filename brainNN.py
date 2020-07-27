@@ -434,7 +434,9 @@ class BrainNN:
         # Update all layers and reset the "change_in_layers" help array
         for cur_popul_idx, cur_popul in enumerate(self.__layers):
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
-                cur_layer += self.__change_in_layers[cur_popul_idx][cur_layer_idx]
+                # Make sure the IINs doesn't diminish too much to negatate the value
+                cur_layer += np.maximum(self.__change_in_layers[cur_popul_idx][
+                                        cur_layer_idx],-cur_layer)
                 self.__change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
 
         self.__update_weights()
