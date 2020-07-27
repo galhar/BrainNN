@@ -49,7 +49,7 @@ class BrainNN:
         SYNAPSES_INITIALIZE_STD: 0.15,
         # Should be lower than 1 if the synapses mean is lower than 1!
         SYNAPSE_DISTANCE_FACTOR: 2,
-        IINS_STRENGTH_FACTOR: 5,
+        IINS_STRENGTH_FACTOR: 2,
         SHOOT_THRESHOLD: 100,
         SYNAPSE_INCREASE_PROBABILITY: 0.5,
         SYNAPSE_DECREASE_PROBABILITY: 0.15,
@@ -148,6 +148,7 @@ class BrainNN:
         # Initialize the connections with some randomness
         mean = self.__conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN]
         std = self.__conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
+        IINs_factor = self.__conf_args[BrainNN.IINS_STRENGTH_FACTOR]
 
         # This determines for each layer if it will have inter-connections
         self.__inter_connections_flags = self.__conf_args[
@@ -185,7 +186,7 @@ class BrainNN:
                                                                    layer_to_conn_idx,
                                                                    popul_idx,
                                                                    popul_idx_to_connect,
-                                                                   mean, std,
+                                                                   mean, std, IINs_factor,
                                                                    popul_layers_inter_conns)
 
 
@@ -194,6 +195,7 @@ class BrainNN:
                                               cur_layer_idx,
                                               layer_to_conn_idx, popul_idx,
                                               popul_idx_to_connect, mean, std,
+                                              IINs_factor,
                                               popul_layers_inter_conns):
         # Don't create connections to different layers in different
         # populations
@@ -207,6 +209,8 @@ class BrainNN:
                            idxs])
 
         IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
+        # make the IINs stronger by the factor in the setup
+        layer_list[-1][0][IINs_start_idx:,:] *= IINs_factor
 
         # Prevent self loops
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
@@ -436,7 +440,7 @@ class BrainNN:
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
                 # Make sure the IINs doesn't diminish too much to negatate the value
                 cur_layer += np.maximum(self.__change_in_layers[cur_popul_idx][
-                                        cur_layer_idx],-cur_layer)
+                                            cur_layer_idx], -cur_layer)
                 self.__change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
 
         self.__update_weights()
