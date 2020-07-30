@@ -62,8 +62,8 @@ def create_binary_input_generator():
         # Inject to teach the network
         last_popul_inject[0] = output
         last_popul_inject[0][indexes_without_cur_num] = output[
-                                                            indexes_without_cur_num] / 1.2
-        last_popul_inject[0][current_num_idx] = output[current_num_idx] * 1.1
+                                                            indexes_without_cur_num] / 1.1
+        last_popul_inject[0][current_num_idx] = output[current_num_idx] * 1.01
         brainNN.set_last_popul_injection(last_popul_inject)
 
         # Insert the sensory input

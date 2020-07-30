@@ -8,6 +8,7 @@ import pickle
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
 SAVE_NAME = 'saved_model'
 SAVE_SUFFIX = '.npy'
+RECORD_SAVE_NAME = 'visualization_video'
 
 
 class BrainNN:
@@ -34,6 +35,8 @@ class BrainNN:
     MAX_CONNECTIONS_RES_IN_VISUALIZATION = 'Any value above this value will be seen as ' \
                                            'it is equal to this value in the ' \
                                            'visualization using colors'
+    RECORD_FLAG = 'Record the chosen visualization of the run. Also allows to disable ' \
+                  'viewing if recording. [to_record_, to_show_during_run]'
 
     default_configuration = {
         # Neuron parameters
@@ -60,7 +63,9 @@ class BrainNN:
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
         MAX_CONNECTIONS_RES_IN_VISUALIZATION: 256,
-        VISUALIZATION_ARGS: None
+        VISUALIZATION_ARGS: None,
+        RECORD_FLAG: [False, True]
+
     }
 
 
@@ -84,6 +89,7 @@ class BrainNN:
         }
         vis_size = self.__conf_args[BrainNN.VISUALIZATION_SIZE]
         self.__visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
+        h, w, _ = self.__visualization_frame.shape
         # Choose visualization function
         self.visualize = self.__visualize_dict.get(self.__conf_args[
                                                        BrainNN.VISUALIZATION_FUNC_STR],
@@ -93,6 +99,14 @@ class BrainNN:
         cv2.namedWindow(self.__vis_window_name)
         # To make sure it's in the viewable screen
         cv2.moveWindow(self.__vis_window_name, 0, 0)
+        self.__vis_record = self.__conf_args[BrainNN.RECORD_FLAG]
+        assert len(self.__vis_record) == 2, "RECORD_FLAG format must be [to_record, " \
+                                            "to_show_during_run]"
+        self.__record_writer = None
+        if self.__vis_record[0]:
+            self.__record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
+                                                   cv2.VideoWriter_fourcc(*'XVID'),
+                                                   10, (w, h))
 
         # Those should be the max expected value of the connections and of the neurons.
         # It's the max value from which every higher value will be with the same color
@@ -210,7 +224,7 @@ class BrainNN:
 
         IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
         # make the IINs stronger by the factor in the setup
-        layer_list[-1][0][IINs_start_idx:,:] *= IINs_factor
+        layer_list[-1][0][IINs_start_idx:, :] *= IINs_factor
 
         # Prevent self loops
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
@@ -344,6 +358,8 @@ class BrainNN:
             self.__iterate()
             self.visualize()
 
+        if self.__record_writer:
+            self.__record_writer.release()
         self.save_state()
 
 
@@ -532,11 +548,19 @@ class BrainNN:
         :return:
         """
         frame = self.__visualization_frame
+        show_during_the_run = True
+        h, w, _ = frame.shape
+
+        # If recording:
+        record = self.__vis_record[0]
+        if record:
+            show_during_the_run = self.__vis_record[1]
+            out = self.__record_writer
+
         neuron_size = 5
         line_thick = 1
 
         # Decrease the neuron size to keep the avoid cutting of the neurons
-        h, w, _ = frame.shape
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
         # Each popul gets an equal part of the frame
@@ -574,8 +598,12 @@ class BrainNN:
                         cv2.imshow(self.__vis_window_name, frame)
                         cv2.waitKey(0)
 
-        cv2.imshow(self.__vis_window_name, frame)
-        cv2.waitKey(1)
+        if show_during_the_run:
+            cv2.imshow(self.__vis_window_name, frame)
+            cv2.waitKey(1)
+
+        if record:
+            out.write(frame)
 
 
     def __draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,

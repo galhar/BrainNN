@@ -218,5 +218,18 @@ def test_imshow_color():
     cv2.waitKey()
 
 
+def test_write_video():
+    frame = np.zeros((700, 1300, 3))
+    h, w, _ = frame.shape
+    out = cv2.VideoWriter('test_record_cv2' + '.avi',
+                          cv2.VideoWriter_fourcc(*'XVID'),
+                          10, (h, w))
+    steps = 1000
+    for i in range(steps):
+        out.write(frame)
+        frame[i:, :i, :] = i / steps
+    out.release()
+
+
 if __name__ == '__main__':
-    test_imshow_color()
+    test_write_video()
