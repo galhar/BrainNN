@@ -3,11 +3,11 @@
 import numpy as np
 import cv2
 import os.path
-import pickle
+import dill
 
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
 SAVE_NAME = 'saved_model'
-SAVE_SUFFIX = '.npy'
+SAVE_SUFFIX = '.pkl'
 RECORD_SAVE_NAME = 'visualization_video'
 
 
@@ -322,7 +322,7 @@ class BrainNN:
             save_name += str(i)
 
         with open(save_name + SAVE_SUFFIX, 'wb') as f:
-            pickle.dump(self, f, 0)
+            dill.dump(self, f)
 
 
     @staticmethod
@@ -334,7 +334,7 @@ class BrainNN:
         """
         load_name = name if name else SAVE_NAME
         with open(load_name + SAVE_SUFFIX, 'rb') as f:
-            loaded = pickle.load(f)
+            loaded = dill.load(f)
         return loaded
 
 
@@ -368,6 +368,12 @@ class BrainNN:
         :return: True in case of success, False in case of failure or finish
         """
         self.visualize()
+
+
+    def zero_neurons(self):
+        for popul in self.__layers:
+            for layer in popul:
+                layer.fill(0)
 
 
     def set_sensory_input(self, arr):

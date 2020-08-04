@@ -12,7 +12,7 @@ def get_noisy_binary_rep(val, noise_std):
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
-def create_binary_input_generator():
+def create_binary_input_generator(inject_answer=True):
     current_num = 1
     shots_count = 0
     noise_std = 0.1
@@ -55,16 +55,16 @@ def create_binary_input_generator():
             # Create the new sensory input
             sensory_input = get_noisy_binary_rep(current_num, noise_std)
 
-        indexes_without_cur_num = (
-                np.arange(len(last_popul_inject[0])) != current_num_idx)
-
-        output = brainNN.get_output()
-        # Inject to teach the network
-        last_popul_inject[0] = output
-        last_popul_inject[0][indexes_without_cur_num] = output[
-                                                            indexes_without_cur_num] / 1.1
-        last_popul_inject[0][current_num_idx] = output[current_num_idx] * 1.01
-        brainNN.set_last_popul_injection(last_popul_inject)
+        if inject_answer:
+            indexes_without_cur_num = (
+                    np.arange(len(last_popul_inject[0])) != current_num_idx)
+            output = brainNN.get_output()
+            # Inject to teach the network
+            last_popul_inject[0] = output
+            last_popul_inject[0][indexes_without_cur_num] = output[
+                                                                indexes_without_cur_num] / 1.1
+            last_popul_inject[0][current_num_idx] = output[current_num_idx] * 1.01
+            brainNN.set_last_popul_injection(last_popul_inject)
 
         # Insert the sensory input
         brainNN.set_sensory_input(sensory_input)
