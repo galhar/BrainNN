@@ -25,6 +25,14 @@ class BrainNN:
                                    'case it provides the learning rule'
     SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
                                    'case it provides the learning rule'
+    SYNAPSE_MEMORY_FACTOR = 'The synapses are updated according to shots into them in ' \
+                            'previous steps. Thus the previous shots into a layer is a ' \
+                            'moving average of the shots into this layer. Each time ' \
+                            'step advancing, the previous average is multiplied by THIS ' \
+                            '' \
+                            'FACTOR and added to the current shots mulitplied by (' \
+                            '1-THIS FACTOR). RANGE: [0,1]. higher than 0.5 will cause ' \
+                            'it to remember previous shots, lower will forget prev shots'
     MAX_WEIGHT_INCREASE = 'Max value the weights can increase by. If they are 0 they ' \
                           'get increased by this value'
     WEIGHTS_SUM_INTO_NEURON = 'The sum of weights that go into a single neuron.'
@@ -56,6 +64,7 @@ class BrainNN:
         SHOOT_THRESHOLD: 100,
         SYNAPSE_INCREASE_PROBABILITY: 0.5,
         SYNAPSE_DECREASE_PROBABILITY: 0.15,
+        SYNAPSE_MEMORY_FACTOR: 0.6,
         MAX_WEIGHT_INCREASE: 50,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
         WEIGHTS_SUM_INTO_NEURON: 1000,
@@ -78,6 +87,7 @@ class BrainNN:
             BrainNN.SYNAPSE_INCREASE_PROBABILITY]
         self.__change_prob_decrease = self.__conf_args[
             BrainNN.SYNAPSE_DECREASE_PROBABILITY]
+        self.__synapse_memory_factor = self.__conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
         self.__max_weight_increase = self.__conf_args[BrainNN.MAX_WEIGHT_INCREASE]
         self.__weights_sum_into_neuron = self.__conf_args[BrainNN.WEIGHTS_SUM_INTO_NEURON]
 
@@ -91,9 +101,8 @@ class BrainNN:
         self.__visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
         h, w, _ = self.__visualization_frame.shape
         # Choose visualization function
-        self.visualize = self.__visualize_dict.get(self.__conf_args[
-                                                       BrainNN.VISUALIZATION_FUNC_STR],
-                                                   self.__default_visualize)
+        self.set_visualization(self.__conf_args[BrainNN.VISUALIZATION_FUNC_STR])
+
         # Create visualization window
         self.__vis_window_name = VISUALIZATION_WINDOW_NAME
         cv2.namedWindow(self.__vis_window_name)
@@ -223,6 +232,7 @@ class BrainNN:
                            idxs])
 
         IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
+
         # make the IINs stronger by the factor in the setup
         layer_list[-1][0][IINs_start_idx:, :] *= IINs_factor
 
@@ -260,10 +270,11 @@ class BrainNN:
 
             # Prevent IINs of one layer to shoot to another
             layer_list[-1][0][IINs_start_idx:, :] = 0
-            # Prevent excitatory neurons to shoot into other layer's IINs
-            IINs_start_idx_to_connect = self.__IINs_start_per_popul[
-                popul_idx_to_connect]
-            layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
+
+            # # Prevent excitatory neurons to shoot into other layer's IINs
+            # IINs_start_idx_to_connect = self.__IINs_start_per_popul[
+            #     popul_idx_to_connect]
+            # layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
@@ -300,7 +311,7 @@ class BrainNN:
         last_popul_excitatory_neurons_num = self.__IINs_start_per_popul[-1]
         self.__inject_to_last_popul = [
             np.zeros(last_popul_excitatory_neurons_num) for i
-            in range(last_popul_excitatory_neurons_num)]
+            in range(len(self.__layers[-1]))]
 
 
     def save_state(self, name=None, overwrite=True):
@@ -396,14 +407,18 @@ class BrainNN:
 
         # Make sure all the dimension are right
         if len(arr_list) == len(self.__inject_to_last_popul):
-            for inject_arr_idx, inject_arr in enumerate(self.__inject_to_last_popul):
+            for inject_arr_idx, inject_arr in enumerate(arr_list):
                 # Allow not to inject to a specific layer
                 if inject_arr is None:
                     continue
-                if inject_arr.shape != arr_list[inject_arr_idx].shape:
+                if inject_arr.shape != self.__inject_to_last_popul[inject_arr_idx].shape:
                     raise ValueError("inject to last popult during training with wrong "
                                      "dimension!")
                 self.__inject_to_last_popul[inject_arr_idx] = arr_list[inject_arr_idx]
+
+
+    def get_shot_threshold(self):
+        return self.__thresh
 
 
     def get_output(self, get_shots=False, whole_popul=False):
@@ -474,6 +489,7 @@ class BrainNN:
               process of firing, as described in the doc.
         :return:
         """
+        syn_mem_fac = self.__synapse_memory_factor
         # Iterate over the layers
         for cur_popul_idx, cur_popul in enumerate(self.__layers):
             for cur_layer_idx in range(len(cur_popul)):
@@ -486,23 +502,30 @@ class BrainNN:
 
                 for idx, mat_data in enumerate(matrices_from_cur_layer):
                     matrix, dst_idxs = mat_data
-                    to_layer_cur_shots = self.__current_shots[dst_idxs[0]][dst_idxs[1]]
+                    dst_layer_cur_shots = self.__current_shots[dst_idxs[0]][dst_idxs[1]]
 
-                    # who didn't shoot get -1 to decrease if one shots to them and they
-                    # didn't shoot. That's why ( 2 * to_layer_cur_shots - 1 ) to make 1
-                    # to 1 and 0 to -1.
-                    shots_matrix = np.outer(cur_layer_prev_shots, 2 * to_layer_cur_shots
-                                            - 1)
+                    # who didn't previously shot get -1 to decrease if the dst neuron
+                    # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to make 1
+                    # to 1 and 0 to -1. The cur_layer_prev_shots is a moving average of
+                    # previous shots. Above 0.5 will count as it shot, bellow and equal
+                    # will count as it didn't shot.
+                    shots_matrix = np.outer(2 * (cur_layer_prev_shots > 0.5) - 1,
+                                            dst_layer_cur_shots)
                     # I'm afraid it would be problematic so I add the assertion here
                     assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
-                                                  to_layer_cur_shots.shape[0])
+                                                  dst_layer_cur_shots.shape[0])
 
                     self.__synapses_matrices[cur_popul_idx][cur_layer_idx][idx][0] = \
                         self.__update_synapses_matrix(shots_matrix, matrix)
 
                 # Update prev_shots
                 self.__prev_shots[cur_popul_idx][cur_layer_idx] = self.__current_shots[
-                    cur_popul_idx][cur_layer_idx]
+                                                                      cur_popul_idx][
+                                                                      cur_layer_idx] * (
+                                                                              1 -
+                                                                              syn_mem_fac) + \
+                                                                  cur_layer_prev_shots \
+                                                                  * syn_mem_fac
 
 
     def __update_synapses_matrix(self, shots_mat, cur_synapses_mat):
@@ -609,7 +632,8 @@ class BrainNN:
             cv2.waitKey(1)
 
         if record:
-            out.write(frame)
+            save_frame = (frame * 255).astype(np.uint8)
+            out.write(save_frame)
 
 
     def __draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,

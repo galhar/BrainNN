@@ -12,11 +12,15 @@ def get_noisy_binary_rep(val, noise_std):
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
-def create_binary_input_generator(inject_answer=True):
+def create_binary_input_generator(inject_answer=True, cycles=1):
     current_num = 1
     shots_count = 0
     noise_std = 0.1
-    cycles = 0
+    cycles_counter = 0
+    input_amp = 20
+    # the max part of the shooting threshold the injection is willing to inject
+    inj_lim_from_thresh = 0.9
+
     identified_input_shots_needed = 5
     last_popul_inject = [np.zeros(2 ** N - 1), None]
     sensory_input = get_noisy_binary_rep(current_num, noise_std)
@@ -28,7 +32,10 @@ def create_binary_input_generator(inject_answer=True):
         nonlocal identified_input_shots_needed
         nonlocal sensory_input
         nonlocal noise_std
-        nonlocal cycles
+        nonlocal cycles_counter
+        # define the injection limit
+        inj_lim = inj_lim_from_thresh * brainNN.get_shot_threshold()
+
         # Check for output shots
         current_num_idx = current_num - 1
 
@@ -47,29 +54,35 @@ def create_binary_input_generator(inject_answer=True):
             current_num = (current_num + 1) % 2 ** N
             # Avoid inserting 0 when finishing a cycle
             if current_num == 0:
+                print(f"Cycle number {cycles_counter}")
                 current_num += 1
-                cycles += 1
+                cycles_counter += 1
 
             print(f"Current Input change to: {current_num}")
 
             # Create the new sensory input
-            sensory_input = get_noisy_binary_rep(current_num, noise_std)
+            sensory_input = get_noisy_binary_rep(current_num, noise_std) * input_amp
 
         if inject_answer:
             indexes_without_cur_num = (
                     np.arange(len(last_popul_inject[0])) != current_num_idx)
             output = brainNN.get_output()
+
             # Inject to teach the network
-            last_popul_inject[0] = output
-            last_popul_inject[0][indexes_without_cur_num] = output[
-                                                                indexes_without_cur_num] / 1.1
-            last_popul_inject[0][current_num_idx] = output[current_num_idx] * 1.01
+            # decrease from the wrong neurons
+            last_popul_inject[0][indexes_without_cur_num] = - output[
+                indexes_without_cur_num] * 0.1
+            # increase to the right neuron
+            inj = output[current_num_idx] * 0.01
+            last_popul_inject[0][current_num_idx] = inj if inj + output[
+                current_num_idx] <= inj_lim else 0
+
             brainNN.set_last_popul_injection(last_popul_inject)
 
         # Insert the sensory input
         brainNN.set_sensory_input(sensory_input)
         # Return false in case of finish or error
-        return cycles < 1
+        return cycles_counter < cycles
 
 
     # Update the sensory input to the first layer in the first population
