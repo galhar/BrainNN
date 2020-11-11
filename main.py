@@ -8,7 +8,7 @@ LOAD = False
 if __name__ == '__main__':
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(6, 4), (1, 1), (1, 1)]
-    inter_connections = [(False, False), (False, False), (False, False)]
+    inter_connections = [(True, True), (True, True), (True, True)]
     record_flags = [True, True]
     vis_str = 'Nne'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,

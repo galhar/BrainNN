@@ -65,7 +65,7 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.5,
         SYNAPSE_DECREASE_PROBABILITY: 0.15,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        MAX_WEIGHT_INCREASE: 50,
+        MAX_WEIGHT_INCREASE: 8,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
         WEIGHTS_SUM_INTO_NEURON: 1000,
         VISUALIZATION_FUNC_STR: 'default',
@@ -190,6 +190,11 @@ class BrainNN:
 
                 # Now iterate over all layers and create connections. We will create
                 # only forward connections
+
+                # Normalize each neuron's output. It depends only on the weights in the
+                # matrices from its layer to others, only on its relevant row on these
+                # matrices. So normalize the values in each row over the matrices.
+                normalize_vec = np.zeros((layer_neurons_num,))
                 for popul_idx_to_connect in range(popul_idx,
                                                   len(self.__neurons_per_layer)):
                     popul_to_connect = self.__neurons_per_layer[popul_idx_to_connect]
@@ -211,6 +216,14 @@ class BrainNN:
                                                                    popul_idx_to_connect,
                                                                    mean, std, IINs_factor,
                                                                    popul_layers_inter_conns)
+                        normalize_vec += layer_list[-1][0].sum(axis=1)
+                # Now normalize the output from each neuron as explained above the loop
+                for mat, idx in layer_list:
+                    mat = self.__thresh * mat / normalize_vec[:,np.newaxis]
+
+
+
+
 
 
     def __create_connections_between_2_layers(self, layer_neurons_num, layer_to_conn,
