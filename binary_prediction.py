@@ -1,12 +1,12 @@
 # Writer: Gal Harari
 # Date: 22/07/2020
-from brainNN import BrainNN
+from brainNN import BrainNN, NetWrapper
 import numpy as np
 
 N = 4
 
 
-def get_noisy_binary_rep(val, noise_std):
+def get_binary_rep(val, noise_std=0):
     binary_represnt_list = [(val >> i) & 1 for i in range(N - 1, -1, -1)]
     binary_represnt_np = np.array(binary_represnt_list)
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
@@ -15,15 +15,15 @@ def get_noisy_binary_rep(val, noise_std):
 def create_binary_input_generator(inject_answer=True, cycles=1):
     current_num = 1
     shots_count = 0
-    noise_std = 0.1
+    input_amp = 15
+    noise_std = 0.1 / input_amp
     cycles_counter = 0
-    input_amp = 20
     # the max part of the shooting threshold the injection is willing to inject
     inj_lim_from_thresh = 0.9
 
     identified_input_shots_needed = 5
     last_popul_inject = [np.zeros(2 ** N - 1), None]
-    sensory_input = get_noisy_binary_rep(current_num, noise_std)
+    sensory_input = get_binary_rep(current_num, noise_std) * input_amp
 
 
     def input_generator(brainNN):
@@ -51,7 +51,7 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
             shots_count = 0
 
             # Move to the next number
-            current_num = (current_num + 1) % 2 ** N
+            current_num = (current_num + 1) % (2 ** N)
             # Avoid inserting 0 when finishing a cycle
             if current_num == 0:
                 print(f"Cycle number {cycles_counter}")
@@ -61,7 +61,7 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
             print(f"Current Input change to: {current_num}")
 
             # Create the new sensory input
-            sensory_input = get_noisy_binary_rep(current_num, noise_std) * input_amp
+            sensory_input = get_binary_rep(current_num, noise_std) * input_amp
 
         if inject_answer:
             indexes_without_cur_num = (
@@ -89,6 +89,20 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
 
     # Update the inject arrays to the last population
     return input_generator
+
+
+def evaluate_binary_representation_nn(net, sequential=True, noise=0):
+    net.zero_neurons()
+    net_wrapper = NetWrapper(net,noise_std=noise)
+    for i in range(1, (2 ** N)):
+        x = get_binary_rep(i)
+        y = i - 1
+        output = net_wrapper(x)
+        pred_y = np.argmax(output)
+        print(f"Ground truth: {y}| Output: {pred_y} | Output vector: {output}")
+
+        if not sequential:
+            net.zero_neurons()
 
 
 if __name__ == '__main__':

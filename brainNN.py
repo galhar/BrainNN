@@ -18,7 +18,13 @@ class BrainNN:
     SYNAPSES_INITIALIZE_STD = 'The precentage of the INITIALIZE FACTOR that will be the' \
                               ' std'
     SYNAPSE_DISTANCE_FACTOR = 'The farther the population is, the connections get ' \
-                              'weaker exponentially by this factor'
+                              'weaker exponentially by this factor. It also affects the ' \
+                              '' \
+                              '' \
+                              '' \
+                              '' \
+                              'inner connections in the same way, and make the nodes ' \
+                              'connections stronger by this factor'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
     SYNAPSE_INCREASE_PROBABILITY = 'Probability for a synapse weight to INCREASE in ' \
@@ -28,16 +34,8 @@ class BrainNN:
     SYNAPSE_MEMORY_FACTOR = 'The synapses are updated according to shots into them in ' \
                             'previous steps. Thus the previous shots into a layer is a ' \
                             'moving average of the shots into this layer. Each time ' \
-                            'step advancing, the previous average is multiplied by THIS ' \
-                            '' \
-                            '' \
-                            '' \
-                            '' \
-                            '' \
-                            '' \
-                            '' \
-                            '' \
-                            'FACTOR and added to the current shots mulitplied by (' \
+                            'step advancing, the previous average is multiplied by THIS' \
+                            ' FACTOR and added to the current shots mulitplied by (' \
                             '1-THIS FACTOR). RANGE: [0,1]. higher than 0.5 will cause ' \
                             'it to remember previous shots, lower will forget prev shots'
     MAX_WEIGHT_INCREASE = 'Max value the weights can increase by. If they are 0 they ' \
@@ -120,9 +118,7 @@ class BrainNN:
                                             "to_show_during_run]"
         self.__record_writer = None
         if self.__vis_record[0]:
-            self.__record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
-                                                   cv2.VideoWriter_fourcc(*'XVID'),
-                                                   10, (w, h))
+            self.create_video_writer()
 
         # Initialize data structures
         self.__sensory_input = None
@@ -135,6 +131,13 @@ class BrainNN:
         # in the visualization
         self.__connections_max_res = self.__determine_weights_res()
         self.__neurons_max_res = self.__thresh
+
+
+    def create_video_writer(self):
+        h, w, _ = self.__visualization_frame.shape
+        self.__record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
+                                               cv2.VideoWriter_fourcc(*'XVID'),
+                                               10, (w, h))
 
 
     def __determine_weights_res(self):
@@ -325,7 +328,7 @@ class BrainNN:
             for i in range(size[0]):
                 for j in range(size[1]):
                     if i < extory_num and j < extory_num:
-                        mult_mat[i, j] *= dist_fac ** (1-abs(i - j))
+                        mult_mat[i, j] *= dist_fac ** (1 - abs(i - j))
 
             layer_list[-1][0] *= mult_mat
         else:
@@ -381,6 +384,7 @@ class BrainNN:
             save_name += str(i)
 
         with open(save_name + SAVE_SUFFIX, 'wb') as f:
+            self.__record_writer = None
             dill.dump(self, f)
 
 
@@ -394,6 +398,9 @@ class BrainNN:
         load_name = name if name else SAVE_NAME
         with open(load_name + SAVE_SUFFIX, 'rb') as f:
             loaded = dill.load(f)
+
+        if loaded.__vis_record[0]:
+            loaded.__create_video_writer()
         return loaded
 
 
@@ -748,6 +755,35 @@ class BrainNN:
                                      0, connections_strength / self.__connections_max_res,
                                      0),
                                  line_thick)
+
+
+def np_softmax(x):
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
+
+
+class NetWrapper:
+
+    def __init__(self, net: BrainNN, norm_func=np_softmax, noise_std=0,
+                 req_shots_count=5):
+        self.brainNN = net
+        self.__n_std = noise_std
+        self.__req_shot_count = req_shots_count
+        self.__norm_func = norm_func
+
+
+    def __call__(self, input):
+        net = self.brainNN
+        out_vec = np.zeros(net.get_output(get_shots=True).shape)
+        while np.max(out_vec) < self.__req_shot_count:
+            # insert sensory input
+            sensory_input = np.abs(np.random.normal(input, self.__n_std))
+            net.set_sensory_input(sensory_input)
+
+            # Get the output
+            out_vec += net.get_output(get_shots=True)
+
+        # Return normalize vec
+        return self.__norm_func(out_vec)
 
 
 if __name__ == '__main__':
