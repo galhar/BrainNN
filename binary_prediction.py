@@ -3,7 +3,7 @@
 from brainNN import BrainNN
 import numpy as np
 
-N = 5
+N = 4
 
 
 def get_noisy_binary_rep(val, noise_std):

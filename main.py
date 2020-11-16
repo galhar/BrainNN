@@ -7,7 +7,7 @@ LOAD = False
 
 if __name__ == '__main__':
     nodes_details = [N, 2 ** N, 2 ** N - 1]
-    IINs_details = [(6, 4), (1, 1), (1, 1)]
+    IINs_details = [(3, 3), (3, 2), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True)]
     record_flags = [True, True]
     vis_str = 'Nne'

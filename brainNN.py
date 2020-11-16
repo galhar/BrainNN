@@ -30,6 +30,13 @@ class BrainNN:
                             'moving average of the shots into this layer. Each time ' \
                             'step advancing, the previous average is multiplied by THIS ' \
                             '' \
+                            '' \
+                            '' \
+                            '' \
+                            '' \
+                            '' \
+                            '' \
+                            '' \
                             'FACTOR and added to the current shots mulitplied by (' \
                             '1-THIS FACTOR). RANGE: [0,1]. higher than 0.5 will cause ' \
                             'it to remember previous shots, lower will forget prev shots'
@@ -59,11 +66,11 @@ class BrainNN:
         SYNAPSES_INITIALIZE_MEAN: 8,
         SYNAPSES_INITIALIZE_STD: 0.15,
         # Should be lower than 1 if the synapses mean is lower than 1!
-        SYNAPSE_DISTANCE_FACTOR: 2,
+        SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
         SHOOT_THRESHOLD: 100,
-        SYNAPSE_INCREASE_PROBABILITY: 0.5,
-        SYNAPSE_DECREASE_PROBABILITY: 0.15,
+        SYNAPSE_INCREASE_PROBABILITY: 0.8,
+        SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
         MAX_WEIGHT_INCREASE: 8,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
@@ -117,18 +124,31 @@ class BrainNN:
                                                    cv2.VideoWriter_fourcc(*'XVID'),
                                                    10, (w, h))
 
-        # Those should be the max expected value of the connections and of the neurons.
-        # It's the max value from which every higher value will be with the same color
-        # in the visualization
-        self.__connections_max_res = self.__conf_args[
-            BrainNN.MAX_CONNECTIONS_RES_IN_VISUALIZATION]
-        self.__neurons_max_res = self.__thresh
-
         # Initialize data structures
         self.__sensory_input = None
         self.__inject_to_last_popul = None
         self.__init_model()
         self.__init_sensory_input()
+
+        # Those should be the max expected value of the connections and of the neurons.
+        # It's the max value from which every higher value will be with the same color
+        # in the visualization
+        self.__connections_max_res = self.__determine_weights_res()
+        self.__neurons_max_res = self.__thresh
+
+
+    def __determine_weights_res(self):
+        max_value = 0.
+        # Iterate only on synapses from the first layer, assuming it represents well
+        # all the others
+        for mat, idx in self.__synapses_matrices[0][0]:
+            mat_max = np.max(mat)
+            max_value = mat_max if mat_max > max_value else max_value
+
+        # That's not accurate! It's not that a weights can only increase by "max weight
+        # increase", that's the max it will increase on 1 updating. But that's the
+        # approximation
+        return max_value + self.__max_weight_increase
 
 
     def __init_model(self):
@@ -217,16 +237,15 @@ class BrainNN:
                                                                    mean, std, IINs_factor,
                                                                    popul_layers_inter_conns)
                         normalize_vec += layer_list[-1][0].sum(axis=1)
+
                 # Now normalize the output from each neuron as explained above the loop
-                for mat, idx in layer_list:
-                    mat = self.__thresh * mat / normalize_vec[:,np.newaxis]
+                for i in range(len(layer_list)):
+                    mat = layer_list[i][0]
+                    layer_list[i][0] = self.__thresh * mat / normalize_vec[:, np.newaxis]
 
 
-
-
-
-
-    def __create_connections_between_2_layers(self, layer_neurons_num, layer_to_conn,
+    def __create_connections_between_2_layers(self, layer_neurons_num,
+                                              l_to_conn_neurons_n,
                                               layer_list,
                                               cur_layer_idx,
                                               layer_to_conn_idx, popul_idx,
@@ -241,7 +260,7 @@ class BrainNN:
 
         idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
         layer_list.append([np.random.normal(mean, std, (layer_neurons_num,
-                                                        layer_to_conn)),
+                                                        l_to_conn_neurons_n)),
                            idxs])
 
         IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
@@ -291,11 +310,27 @@ class BrainNN:
 
         # Weaken links between far populations, and strength inner
         # population connections
-        layer_list[-1][0] *= (self.__conf_args[
-                                  BrainNN.SYNAPSE_DISTANCE_FACTOR] ** (
-                                      1 - abs(
-                                  popul_idx_to_connect -
-                                  popul_idx)))
+        dist_fac = self.__conf_args[BrainNN.SYNAPSE_DISTANCE_FACTOR]
+
+        # for the same layer treat differently:
+        if popul_idx_to_connect == popul_idx:
+            # connections in the same layer get weaken as the neurons are far from each
+            # other, and node connections get stronger
+
+            # only mess with the excitatory neurons
+            extory_num = self.__IINs_start_per_popul[popul_idx]
+
+            size = layer_list[-1][0].shape
+            mult_mat = np.ones(size)
+            for i in range(size[0]):
+                for j in range(size[1]):
+                    if i < extory_num and j < extory_num:
+                        mult_mat[i, j] *= dist_fac ** (1-abs(i - j))
+
+            layer_list[-1][0] *= mult_mat
+        else:
+            # connections between layers
+            layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
 
 
     def __validate_inter_connections_format(self, popul_idx, popul_to_connect):
@@ -535,8 +570,8 @@ class BrainNN:
                 self.__prev_shots[cur_popul_idx][cur_layer_idx] = self.__current_shots[
                                                                       cur_popul_idx][
                                                                       cur_layer_idx] * (
-                                                                              1 -
-                                                                              syn_mem_fac) + \
+                                                                          1 -
+                                                                          syn_mem_fac) + \
                                                                   cur_layer_prev_shots \
                                                                   * syn_mem_fac
 
