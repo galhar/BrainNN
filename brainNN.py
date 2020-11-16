@@ -384,8 +384,10 @@ class BrainNN:
             save_name += str(i)
 
         with open(save_name + SAVE_SUFFIX, 'wb') as f:
+            rw = self.__record_writer
             self.__record_writer = None
             dill.dump(self, f)
+            self.__record_writer = rw
 
 
     @staticmethod
@@ -412,21 +414,24 @@ class BrainNN:
         :return:
         """
         while input_generator(self):
-            # Update the input and the injection to the last layer
-            IINs_start_inp_popul = self.__IINs_start_per_popul[0]
-            IINs_start_out_popul = self.__IINs_start_per_popul[-1]
-            self.__layers[0][0][:IINs_start_inp_popul] += self.__sensory_input
-            for i, layer in enumerate(self.__layers[-1]):
-                self.__layers[-1][i][:IINs_start_out_popul] += \
-                    self.__inject_to_last_popul[i]
-
-            # Iterate
-            self.__iterate()
-            self.visualize()
+            self.step()
 
         if self.__record_writer:
             self.__record_writer.release()
         self.save_state()
+
+
+    def step(self):
+        # Update the input and the injection to the last layer
+        IINs_start_inp_popul = self.__IINs_start_per_popul[0]
+        IINs_start_out_popul = self.__IINs_start_per_popul[-1]
+        self.__layers[0][0][:IINs_start_inp_popul] += self.__sensory_input
+        for i, layer in enumerate(self.__layers[-1]):
+            self.__layers[-1][i][:IINs_start_out_popul] += \
+                self.__inject_to_last_popul[i]
+        # Iterate
+        self.__iterate()
+        self.visualize()
 
 
     def update_inject_and_input(self):
@@ -437,10 +442,20 @@ class BrainNN:
 
 
     def zero_neurons(self):
+        # Zero the neurons
         for popul in self.__layers:
             for layer in popul:
                 layer.fill(0)
 
+        # Zero the injection
+        for i in range(len(self.__inject_to_last_popul)):
+            self.__inject_to_last_popul[i].fill(0)
+
+        # Zero the current and previous shots
+        for popul_idx, popul_shots in enumerate(self.__current_shots):
+            for i in range(len(popul_shots)):
+                popul_shots[i].fill(0)
+                self.__prev_shots[popul_idx][i].fill(0)
 
     def set_sensory_input(self, arr):
         assert arr.shape == self.__sensory_input.shape, "Sensory input inserted is in " \
@@ -778,6 +793,8 @@ class NetWrapper:
             # insert sensory input
             sensory_input = np.abs(np.random.normal(input, self.__n_std))
             net.set_sensory_input(sensory_input)
+
+            net.step()
 
             # Get the output
             out_vec += net.get_output(get_shots=True)

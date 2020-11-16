@@ -12,6 +12,7 @@ if __name__ == '__main__':
     inter_connections = [(False, True), (True, True), (True, True)]
     record_flags = [True, True]
     vis_str = 'None'
+    eval_vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str,
@@ -29,4 +30,5 @@ if __name__ == '__main__':
 
     brainNN.train(create_binary_input_generator(inject_answer=True, cycles=1))
 
+    brainNN.set_visualization(eval_vis_str)
     evaluate_binary_representation_nn(brainNN)

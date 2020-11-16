@@ -91,11 +91,11 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
     return input_generator
 
 
-def evaluate_binary_representation_nn(net, sequential=True, noise=0):
+def evaluate_binary_representation_nn(net, sequential=True, noise=0, inp_amp=15):
     net.zero_neurons()
-    net_wrapper = NetWrapper(net,noise_std=noise)
+    net_wrapper = NetWrapper(net, noise_std=noise/inp_amp)
     for i in range(1, (2 ** N)):
-        x = get_binary_rep(i)
+        x = get_binary_rep(i) * inp_amp
         y = i - 1
         output = net_wrapper(x)
         pred_y = np.argmax(output)
