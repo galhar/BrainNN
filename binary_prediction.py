@@ -12,7 +12,7 @@ def get_binary_rep(val, noise_std=0):
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
-def create_binary_input_generator(inject_answer=True, cycles=1):
+def create_binary_input_generator(inject_answer=True, epoches=1, verbose=True):
     current_num = 1
     shots_count = 0
     input_amp = 15
@@ -43,7 +43,8 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
         # If the correct node shot, raise the shot count
         if output_shots[current_num_idx] == 1:
             shots_count += 1
-            print(f"Shot on {current_num}")
+            if verbose:
+                print(f"Shot on {current_num}")
 
         # If it identified the number, move on to the next one
         if shots_count >= identified_input_shots_needed:
@@ -54,11 +55,12 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
             current_num = (current_num + 1) % (2 ** N)
             # Avoid inserting 0 when finishing a cycle
             if current_num == 0:
-                print(f"Cycle number {cycles_counter}")
+                print(f" Finished Epoch {cycles_counter}")
                 current_num += 1
                 cycles_counter += 1
 
-            print(f"Current Input change to: {current_num}")
+            if verbose:
+                print(f"Current Input change to: {current_num}")
 
             # Create the new sensory input
             sensory_input = get_binary_rep(current_num, noise_std) * input_amp
@@ -82,7 +84,7 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
         # Insert the sensory input
         brainNN.set_sensory_input(sensory_input)
         # Return false in case of finish or error
-        return cycles_counter < cycles
+        return cycles_counter < epoches
 
 
     # Update the sensory input to the first layer in the first population
@@ -93,16 +95,23 @@ def create_binary_input_generator(inject_answer=True, cycles=1):
 
 def evaluate_binary_representation_nn(net, sequential=True, noise=0, inp_amp=15):
     net.zero_neurons()
-    net_wrapper = NetWrapper(net, noise_std=noise/inp_amp)
+    net_wrapper = NetWrapper(net, noise_std=noise / inp_amp)
+
+    correct = 0
+    total = 0
     for i in range(1, (2 ** N)):
         x = get_binary_rep(i) * inp_amp
         y = i - 1
         output = net_wrapper(x)
         pred_y = np.argmax(output)
-        print(f"Ground truth: {y}| Output: {pred_y} | Output vector: {output}")
 
+        total += 1
+        correct += 1 if pred_y == y else 0
+        print(f"Ground truth: {y}| Output: {pred_y} | Output vector: {output}")
         if not sequential:
             net.zero_neurons()
+
+    print('Accuracy: %d %%' % (100 * correct / total))
 
 
 if __name__ == '__main__':

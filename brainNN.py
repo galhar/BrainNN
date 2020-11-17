@@ -18,12 +18,8 @@ class BrainNN:
     SYNAPSES_INITIALIZE_STD = 'The precentage of the INITIALIZE FACTOR that will be the' \
                               ' std'
     SYNAPSE_DISTANCE_FACTOR = 'The farther the population is, the connections get ' \
-                              'weaker exponentially by this factor. It also affects the ' \
-                              '' \
-                              '' \
-                              '' \
-                              '' \
-                              'inner connections in the same way, and make the nodes ' \
+                              'weaker exponentially by this factor. It also affects the' \
+                              ' inner connections in the same way, and make the nodes ' \
                               'connections stronger by this factor'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
@@ -38,8 +34,17 @@ class BrainNN:
                             ' FACTOR and added to the current shots mulitplied by (' \
                             '1-THIS FACTOR). RANGE: [0,1]. higher than 0.5 will cause ' \
                             'it to remember previous shots, lower will forget prev shots'
-    MAX_WEIGHT_INCREASE = 'Max value the weights can increase by. If they are 0 they ' \
-                          'get increased by this value'
+    WEIGHT_CHANGE_ARGS = 'Arguments required by the increase and decrease func. The ' \
+                         'increase/decrease func will get (np weights array, ' \
+                         '*these args). Thus the args must come as a list.'
+    WEIGHT_INCREASE_FUNC = 'Function that gets (np array of the weights, ' \
+                           '*weight_change_args) and returns a np array of addon to add' \
+                           ' to the weights. Operate on weights that increases after an' \
+                           ' iteration.'
+    WEIGHT_DECREASE_FUNC = 'Function that gets (np array of minus the weights, ' \
+                           '*weight_change_args) and returns a np array of negative ' \
+                           'addon to add to the weights. Operate on weights that ' \
+                           'decreases after an iteration.'
     WEIGHTS_SUM_INTO_NEURON = 'The sum of weights that go into a single neuron.'
     VISUALIZATION_FUNC_STR = 'Visualization function to use'
     VISUALIZATION_SIZE = "Visualization image's size"
@@ -70,7 +75,9 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        MAX_WEIGHT_INCREASE: 8,
+        WEIGHT_CHANGE_ARGS: [8],
+        WEIGHT_INCREASE_FUNC: lambda weights, max_inc: 1 / (weights + (1 / max_inc)),
+        WEIGHT_DECREASE_FUNC: lambda neg_weights, _: neg_weights / 2,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
         WEIGHTS_SUM_INTO_NEURON: 1000,
         VISUALIZATION_FUNC_STR: 'default',
@@ -93,8 +100,10 @@ class BrainNN:
         self.__change_prob_decrease = self.__conf_args[
             BrainNN.SYNAPSE_DECREASE_PROBABILITY]
         self.__synapse_memory_factor = self.__conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
-        self.__max_weight_increase = self.__conf_args[BrainNN.MAX_WEIGHT_INCREASE]
         self.__weights_sum_into_neuron = self.__conf_args[BrainNN.WEIGHTS_SUM_INTO_NEURON]
+        self.__syn_inc_func = self.__conf_args[BrainNN.WEIGHT_INCREASE_FUNC]
+        self.__syn_dec_func = self.__conf_args[BrainNN.WEIGHT_DECREASE_FUNC]
+        self.__syn_chg_args = self.__conf_args[BrainNN.WEIGHT_CHANGE_ARGS]
 
         # Visualize section
         # Create visualization frame
@@ -148,10 +157,9 @@ class BrainNN:
             mat_max = np.max(mat)
             max_value = mat_max if mat_max > max_value else max_value
 
-        # That's not accurate! It's not that a weights can only increase by "max weight
-        # increase", that's the max it will increase on 1 updating. But that's the
-        # approximation
-        return max_value + self.__max_weight_increase
+        # That's not accurate! It's not that a weights can only increase by factor of 2,
+        # But that's the approximation
+        return max_value * 2
 
 
     def __init_model(self):
@@ -457,6 +465,7 @@ class BrainNN:
                 popul_shots[i].fill(0)
                 self.__prev_shots[popul_idx][i].fill(0)
 
+
     def set_sensory_input(self, arr):
         assert arr.shape == self.__sensory_input.shape, "Sensory input inserted is in " \
                                                         "wrong shape!"
@@ -627,12 +636,10 @@ class BrainNN:
                                        columns_sum_cur_mat), 1)
 
 
-    def __create_update_mat(self, weighted_synapses_matrix):
-        return np.where(weighted_synapses_matrix > 0, 1 / (weighted_synapses_matrix +
-                                                           (
-                                                                   1 /
-                                                                   self.__max_weight_increase)),
-                        weighted_synapses_matrix / 2)
+    def __create_update_mat(self, weighted_syn_mat):
+        return np.where(weighted_syn_mat > 0,
+                        self.__syn_inc_func(weighted_syn_mat, *self.__syn_chg_args),
+                        self.__syn_dec_func(weighted_syn_mat, *self.__syn_chg_args))
 
 
     def set_visualization(self, vis_func_str):

@@ -19,7 +19,8 @@ if __name__ == '__main__':
                           BrainNN.SYNAPSES_INITIALIZE_MEAN: 5,
                           BrainNN.SHOOT_THRESHOLD: 40,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                          BrainNN.RECORD_FLAG: record_flags}
+                          BrainNN.RECORD_FLAG: record_flags,
+                          BrainNN.IINS_STRENGTH_FACTOR: 3}
 
     if LOAD:
         brainNN = BrainNN.load_model()
@@ -28,7 +29,8 @@ if __name__ == '__main__':
 
     brainNN.set_visualization(vis_str)
 
-    brainNN.train(create_binary_input_generator(inject_answer=True, cycles=1))
+    brainNN.train(create_binary_input_generator(inject_answer=True, epoches=10,
+                                                verbose=False))
 
     brainNN.set_visualization(eval_vis_str)
     evaluate_binary_representation_nn(brainNN)
