@@ -16,7 +16,7 @@ def create_binary_input_generator(inject_answer=True, epoches=1, verbose=True):
     current_num = 1
     shots_count = 0
     input_amp = 15
-    noise_std = 0.1 / input_amp
+    noise_std = 0. / input_amp
     cycles_counter = 0
     # the max part of the shooting threshold the injection is willing to inject
     inj_lim_from_thresh = 0.9

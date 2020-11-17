@@ -34,17 +34,13 @@ class BrainNN:
                             ' FACTOR and added to the current shots mulitplied by (' \
                             '1-THIS FACTOR). RANGE: [0,1]. higher than 0.5 will cause ' \
                             'it to remember previous shots, lower will forget prev shots'
-    WEIGHT_CHANGE_ARGS = 'Arguments required by the increase and decrease func. The ' \
-                         'increase/decrease func will get (np weights array, ' \
-                         '*these args). Thus the args must come as a list.'
-    WEIGHT_INCREASE_FUNC = 'Function that gets (np array of the weights, ' \
-                           '*weight_change_args) and returns a np array of addon to add' \
-                           ' to the weights. Operate on weights that increases after an' \
-                           ' iteration.'
-    WEIGHT_DECREASE_FUNC = 'Function that gets (np array of minus the weights, ' \
-                           '*weight_change_args) and returns a np array of negative ' \
-                           'addon to add to the weights. Operate on weights that ' \
-                           'decreases after an iteration.'
+    SYNAPSE_INCREASE_FUNC = 'Function that gets (np array of the weights) and returns a' \
+                            ' np array of addon to add to the weights. Operate on ' \
+                            'weights that increases after an iteration.'
+    SYNAPSE_DECREASE_FUNC = 'Function that gets (np array of minus the weights and ' \
+                            'returns a np array of negative addon to add to the ' \
+                            'weights. Operate on weights that decreases after an ' \
+                            'iteration.'
     WEIGHTS_SUM_INTO_NEURON = 'The sum of weights that go into a single neuron.'
     VISUALIZATION_FUNC_STR = 'Visualization function to use'
     VISUALIZATION_SIZE = "Visualization image's size"
@@ -75,9 +71,8 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        WEIGHT_CHANGE_ARGS: [8],
-        WEIGHT_INCREASE_FUNC: lambda weights, max_inc: 1 / (weights + (1 / max_inc)),
-        WEIGHT_DECREASE_FUNC: lambda neg_weights, _: neg_weights / 2,
+        SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
+        SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
         # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
         WEIGHTS_SUM_INTO_NEURON: 1000,
         VISUALIZATION_FUNC_STR: 'default',
@@ -101,9 +96,8 @@ class BrainNN:
             BrainNN.SYNAPSE_DECREASE_PROBABILITY]
         self.__synapse_memory_factor = self.__conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
         self.__weights_sum_into_neuron = self.__conf_args[BrainNN.WEIGHTS_SUM_INTO_NEURON]
-        self.__syn_inc_func = self.__conf_args[BrainNN.WEIGHT_INCREASE_FUNC]
-        self.__syn_dec_func = self.__conf_args[BrainNN.WEIGHT_DECREASE_FUNC]
-        self.__syn_chg_args = self.__conf_args[BrainNN.WEIGHT_CHANGE_ARGS]
+        self.__syn_inc_func = self.__conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
+        self.__syn_dec_func = self.__conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
 
         # Visualize section
         # Create visualization frame
@@ -127,7 +121,7 @@ class BrainNN:
                                             "to_show_during_run]"
         self.__record_writer = None
         if self.__vis_record[0]:
-            self.create_video_writer()
+            self.__create_video_writer()
 
         # Initialize data structures
         self.__sensory_input = None
@@ -142,7 +136,7 @@ class BrainNN:
         self.__neurons_max_res = self.__thresh
 
 
-    def create_video_writer(self):
+    def __create_video_writer(self):
         h, w, _ = self.__visualization_frame.shape
         self.__record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
                                                cv2.VideoWriter_fourcc(*'XVID'),
@@ -245,9 +239,11 @@ class BrainNN:
                                                                    layer_to_conn_idx,
                                                                    popul_idx,
                                                                    popul_idx_to_connect,
-                                                                   mean, std, IINs_factor,
+                                                                   mean, std,
                                                                    popul_layers_inter_conns)
                         normalize_vec += layer_list[-1][0].sum(axis=1)
+                # The IINs might be stronger than the excitatory
+                normalize_vec[self.__IINs_start_per_popul[popul_idx]:] /= IINs_factor
 
                 # Now normalize the output from each neuron as explained above the loop
                 for i in range(len(layer_list)):
@@ -261,7 +257,6 @@ class BrainNN:
                                               cur_layer_idx,
                                               layer_to_conn_idx, popul_idx,
                                               popul_idx_to_connect, mean, std,
-                                              IINs_factor,
                                               popul_layers_inter_conns):
         # Don't create connections to different layers in different
         # populations
@@ -275,9 +270,6 @@ class BrainNN:
                            idxs])
 
         IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
-
-        # make the IINs stronger by the factor in the setup
-        layer_list[-1][0][IINs_start_idx:, :] *= IINs_factor
 
         # Prevent self loops
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
@@ -416,9 +408,10 @@ class BrainNN:
 
     def train(self, input_generator):
         """
+        Train the network using the input_generator.
         :param input_generator: a functions that gets the model, update it's
-        __sensory_input and __inject_to_last_popul. It returns False in case of finish
-        or failure
+        sensory input and injection to the last population. It returns False in case of
+        finish or failure
         :return:
         """
         while input_generator(self):
@@ -430,6 +423,12 @@ class BrainNN:
 
 
     def step(self):
+        """
+        Advance one time step of the network - inject the injection to last population if
+        exists, insert the sensory input, advance the neurons and synapses one time
+        step, update the weights and visualize the network.
+        :return:
+        """
         # Update the input and the injection to the last layer
         IINs_start_inp_popul = self.__IINs_start_per_popul[0]
         IINs_start_out_popul = self.__IINs_start_per_popul[-1]
@@ -442,14 +441,12 @@ class BrainNN:
         self.visualize()
 
 
-    def update_inject_and_input(self):
-        """
-        :return: True in case of success, False in case of failure or finish
-        """
-        self.visualize()
-
-
     def zero_neurons(self):
+        """
+        Zero the neurons of the network, the current and previous shots, and the
+        injection to the last population if exists
+        :return:
+        """
         # Zero the neurons
         for popul in self.__layers:
             for layer in popul:
@@ -467,6 +464,12 @@ class BrainNN:
 
 
     def set_sensory_input(self, arr):
+        """
+        Set the sensory input into the net
+        :param arr: the new sensory input. Must be the same dimension as the first
+        layer's excitatory part in the first population.
+        :return:
+        """
         assert arr.shape == self.__sensory_input.shape, "Sensory input inserted is in " \
                                                         "wrong shape!"
         self.__sensory_input = arr
@@ -497,6 +500,9 @@ class BrainNN:
 
 
     def get_shot_threshold(self):
+        """
+        :return: neurons voltage threshold it must pass to shoot.
+        """
         return self.__thresh
 
 
@@ -518,7 +524,7 @@ class BrainNN:
     def get_sensory_input(self):
         """
         Only for debug purposes
-        :return:
+        :return: the current sensory input to the net
         """
         return self.__sensory_input
 
@@ -638,11 +644,17 @@ class BrainNN:
 
     def __create_update_mat(self, weighted_syn_mat):
         return np.where(weighted_syn_mat > 0,
-                        self.__syn_inc_func(weighted_syn_mat, *self.__syn_chg_args),
-                        self.__syn_dec_func(weighted_syn_mat, *self.__syn_chg_args))
+                        self.__syn_inc_func(weighted_syn_mat),
+                        self.__syn_dec_func(weighted_syn_mat))
 
 
     def set_visualization(self, vis_func_str):
+        """
+        Sets the visualization function.
+        :param vis_func_str: ID string of the desired visualization function,
+        in the inner visualization functions dictionary.
+        :return:
+        """
         self.visualize = self.__visualize_dict.get(vis_func_str,
                                                    self.__default_visualize)
 

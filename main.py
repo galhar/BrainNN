@@ -8,9 +8,12 @@ LOAD = False
 
 if __name__ == '__main__':
     nodes_details = [N, 2 ** N, 2 ** N - 1]
-    IINs_details = [(3, 3), (3, 2), (1, 1)]
+    IINs_details = [(3, 3), (3, 3), (1, 1)]
     inter_connections = [(False, True), (True, True), (True, True)]
     record_flags = [True, True]
+    increase_func = lambda weights: 0.1,
+    decrease_func = lambda neg_weights: 0.1
+    inc_prob, dec_prob = 0.7, 0.5
     vis_str = 'None'
     eval_vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
@@ -20,7 +23,7 @@ if __name__ == '__main__':
                           BrainNN.SHOOT_THRESHOLD: 40,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
                           BrainNN.RECORD_FLAG: record_flags,
-                          BrainNN.IINS_STRENGTH_FACTOR: 3}
+                          BrainNN.IINS_STRENGTH_FACTOR: 2}
 
     if LOAD:
         brainNN = BrainNN.load_model()
