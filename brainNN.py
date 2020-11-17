@@ -37,7 +37,7 @@ class BrainNN:
     SYNAPSE_INCREASE_FUNC = 'Function that gets (np array of the weights) and returns a' \
                             ' np array of addon to add to the weights. Operate on ' \
                             'weights that increases after an iteration.'
-    SYNAPSE_DECREASE_FUNC = 'Function that gets (np array of minus the weights and ' \
+    SYNAPSE_DECREASE_FUNC = 'Function that gets (np array of minus the weights) and ' \
                             'returns a np array of negative addon to add to the ' \
                             'weights. Operate on weights that decreases after an ' \
                             'iteration.'
@@ -631,6 +631,9 @@ class BrainNN:
         weighted_synapses_matrix = np.multiply(shots_mat, cur_synapses_mat)
         updated_mat = self.__create_update_mat(
             weighted_synapses_matrix) + cur_synapses_mat
+
+        # Make sure no weight is negative
+        np.maximum(updated_mat, 0, updated_mat)
 
         # Normalize the input synapses to each neuron
         columns_sum_cur_mat, column_sum_updated_mat = cur_synapses_mat.sum(
