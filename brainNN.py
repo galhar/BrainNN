@@ -90,6 +90,8 @@ class BrainNN:
                             for key in BrainNN.default_configuration.keys()}
 
         self.__thresh = self.__conf_args[BrainNN.SHOOT_THRESHOLD]
+        self.__freeze = False
+
         self.__change_prob_increase = self.__conf_args[
             BrainNN.SYNAPSE_INCREASE_PROBABILITY]
         self.__change_prob_decrease = self.__conf_args[
@@ -441,6 +443,22 @@ class BrainNN:
         self.visualize()
 
 
+    def freeze(self):
+        """
+        Fix the synapses
+        :return:
+        """
+        self.__freeze=True
+
+
+    def unfreeze(self):
+        """
+        Allow synapses plasticity
+        :return:
+        """
+        self.__freeze = False
+
+
     def zero_neurons(self):
         """
         Zero the neurons of the network, the current and previous shots, and the
@@ -565,7 +583,8 @@ class BrainNN:
                                             cur_layer_idx], -cur_layer)
                 self.__change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
 
-        self.__update_weights()
+        if not self.__freeze:
+            self.__update_weights()
 
 
     def __update_weights(self):
