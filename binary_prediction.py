@@ -1,7 +1,9 @@
 # Writer: Gal Harari
 # Date: 22/07/2020
-from brainNN import BrainNN, NetWrapper
+from brainNN import BrainNN
+from train_utils import EvalNetWrapper
 import numpy as np
+from train_utils import DataLoaderBase
 
 N = 4
 
@@ -12,16 +14,48 @@ def get_binary_rep(val, noise_std=0):
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
-def create_binary_input_generator(inject_answer=True, epoches=1, verbose=True):
+class BinaryDataLoader(DataLoaderBase):
+
+    def __init__(self, input_amplitude=15, noise_std=0):
+        """
+        :param input_amplitude:
+        :param noise_std: This std is multiplied by the amplitude. Noise might cause the
+        model to be more robust, like dropout in ANNs. Noise can be generated during
+        training for each insertion of the input instead, using NetWrapper. Maybe it's
+        better.
+        """
+        self.inp_amp = input_amplitude
+        self.n_std = noise_std * input_amplitude
+        self._stopped_iter = True
+        self.possible_classes = [i for i in range(1, 2 ** N - 1)]
+
+
+    def __next__(self):
+        # create a single batch and raise stop iteration. If last time didn't raised
+        # stopIteration than this one should do it
+        if not self._stopped_iter:
+            self._stopped_iter = True
+            raise StopIteration
+        # This "next" doesn't raise stopIteration
+        self._stopped_iter = False
+
+        samples_batch = [get_binary_rep(i, self.n_std) * self.inp_amp for i in
+                         range(1, 2 ** N)]
+        labels = [i for i in range(2 ** N)]
+        return [samples_batch, labels]
+
+
+def create_binary_input_generator(inject_answer=True, repeat_sample=5, epoches=1,
+                                  verbose=True, eval_hook=None):
     current_num = 1
     shots_count = 0
     input_amp = 15
-    noise_std = 0. / input_amp
+    noise_std = 0 / input_amp
     cycles_counter = 0
     # the max part of the shooting threshold the injection is willing to inject
     inj_lim_from_thresh = 0.9
 
-    identified_input_shots_needed = 5
+    identified_input_shots_needed = 1
     last_popul_inject = [np.zeros(2 ** N - 1), None]
     sensory_input = get_binary_rep(current_num, noise_std) * input_amp
 
@@ -55,7 +89,8 @@ def create_binary_input_generator(inject_answer=True, epoches=1, verbose=True):
             current_num = (current_num + 1) % (2 ** N)
             # Avoid inserting 0 when finishing a cycle
             if current_num == 0:
-                print(f" Finished Epoch {cycles_counter}")
+                brainNN.zero_neurons()
+                print(f"Finished Epoch {cycles_counter}")
                 current_num += 1
                 cycles_counter += 1
 
@@ -93,9 +128,14 @@ def create_binary_input_generator(inject_answer=True, epoches=1, verbose=True):
     return input_generator
 
 
-def evaluate_binary_representation_nn(net, sequential=True, noise=0, inp_amp=15):
+def evaluate_binary_representation_nn(net, sequential=True, noise=0,
+                                      inp_amp=15, req_shots=5):
     net.zero_neurons()
-    net_wrapper = NetWrapper(net, noise_std=noise / inp_amp)
+    # Number of shots it takes until the netWrapper will return the output vector of
+    # the sum of all these shots normalized
+    req_shots_for_decision = req_shots
+    net_wrapper = EvalNetWrapper(net, noise_std=noise * inp_amp,
+                                 req_shots_num=req_shots_for_decision)
 
     correct = 0
     total = 0
@@ -111,7 +151,9 @@ def evaluate_binary_representation_nn(net, sequential=True, noise=0, inp_amp=15)
         if not sequential:
             net.zero_neurons()
 
-    print('Accuracy: %d %%' % (100 * correct / total))
+    accuracy = 100 * correct / total
+    print('Accuracy: %d %%' % (accuracy))
+    return accuracy
 
 
 if __name__ == '__main__':

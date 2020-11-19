@@ -41,14 +41,9 @@ class BrainNN:
                             'returns a np array of negative addon to add to the ' \
                             'weights. Operate on weights that decreases after an ' \
                             'iteration.'
-    WEIGHTS_SUM_INTO_NEURON = 'The sum of weights that go into a single neuron.'
     VISUALIZATION_FUNC_STR = 'Visualization function to use'
     VISUALIZATION_SIZE = "Visualization image's size"
-    VISUALIZATION_ARGS = 'Arguments for the visualization function'
     INTER_CONNECTIONS_PER_LAYER = 'Stats for each layer if it has inter-connections'
-    MAX_CONNECTIONS_RES_IN_VISUALIZATION = 'Any value above this value will be seen as ' \
-                                           'it is equal to this value in the ' \
-                                           'visualization using colors'
     RECORD_FLAG = 'Record the chosen visualization of the run. Also allows to disable ' \
                   'viewing if recording. [to_record_, to_show_during_run]'
 
@@ -62,94 +57,87 @@ class BrainNN:
         # it has to be the same number of layers in it.
         INTER_CONNECTIONS_PER_LAYER: [(False, True), (True, False), (True, True)],
         # This might be connected to " WEIGHTS_SUM_INTO_NEURON "
-        SYNAPSES_INITIALIZE_MEAN: 8,
+        SYNAPSES_INITIALIZE_MEAN: 5,
         SYNAPSES_INITIALIZE_STD: 0.15,
         # Should be lower than 1 if the synapses mean is lower than 1!
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
-        SHOOT_THRESHOLD: 100,
+        SHOOT_THRESHOLD: 40,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
         SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
         SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
-        # This might be connected to " SYNAPSES_INITIALIZE_MEAN "
-        WEIGHTS_SUM_INTO_NEURON: 1000,
-        VISUALIZATION_FUNC_STR: 'default',
+        VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
-        MAX_CONNECTIONS_RES_IN_VISUALIZATION: 256,
-        VISUALIZATION_ARGS: None,
-        RECORD_FLAG: [False, True]
+        RECORD_FLAG: [True, True]
 
     }
 
 
     def __init__(self, conf_args={}):
-        self.__conf_args = {key: conf_args.get(key, BrainNN.default_configuration[key])
+        self._conf_args = {key: conf_args.get(key, BrainNN.default_configuration[key])
                             for key in BrainNN.default_configuration.keys()}
 
-        self.__thresh = self.__conf_args[BrainNN.SHOOT_THRESHOLD]
-        self.__freeze = False
+        self._thresh = self._conf_args[BrainNN.SHOOT_THRESHOLD]
+        self._freeze = False
 
-        self.__change_prob_increase = self.__conf_args[
-            BrainNN.SYNAPSE_INCREASE_PROBABILITY]
-        self.__change_prob_decrease = self.__conf_args[
-            BrainNN.SYNAPSE_DECREASE_PROBABILITY]
-        self.__synapse_memory_factor = self.__conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
-        self.__weights_sum_into_neuron = self.__conf_args[BrainNN.WEIGHTS_SUM_INTO_NEURON]
-        self.__syn_inc_func = self.__conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
-        self.__syn_dec_func = self.__conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
+        self._syn_memory_factor = self._conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
+        self._syn_inc_func = self._conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
+        self._syn_inc_prob = self._conf_args[BrainNN.SYNAPSE_INCREASE_PROBABILITY]
+        self._syn_dec_func = self._conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
+        self._syn_dec_prob = self._conf_args[BrainNN.SYNAPSE_DECREASE_PROBABILITY]
 
         # Visualize section
         # Create visualization frame
-        self.__visualize_dict = {
-            'default': self.__default_visualize,
+        self._visualize_dict = {
+            'default': self._default_visualize,
             'None': (lambda: None)
         }
-        vis_size = self.__conf_args[BrainNN.VISUALIZATION_SIZE]
-        self.__visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
-        h, w, _ = self.__visualization_frame.shape
+        vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
+        self._visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
+        h, w, _ = self._visualization_frame.shape
         # Choose visualization function
-        self.set_visualization(self.__conf_args[BrainNN.VISUALIZATION_FUNC_STR])
+        self.set_visualization(self._conf_args[BrainNN.VISUALIZATION_FUNC_STR])
 
         # Create visualization window
-        self.__vis_window_name = VISUALIZATION_WINDOW_NAME
-        cv2.namedWindow(self.__vis_window_name)
+        self._vis_window_name = VISUALIZATION_WINDOW_NAME
+        cv2.namedWindow(self._vis_window_name)
         # To make sure it's in the viewable screen
-        cv2.moveWindow(self.__vis_window_name, 0, 0)
-        self.__vis_record = self.__conf_args[BrainNN.RECORD_FLAG]
-        assert len(self.__vis_record) == 2, "RECORD_FLAG format must be [to_record, " \
+        cv2.moveWindow(self._vis_window_name, 0, 0)
+        self._vis_record = self._conf_args[BrainNN.RECORD_FLAG]
+        assert len(self._vis_record) == 2, "RECORD_FLAG format must be [to_record, " \
                                             "to_show_during_run]"
-        self.__record_writer = None
-        if self.__vis_record[0]:
-            self.__create_video_writer()
+        self._record_writer = None
+        if self._vis_record[0]:
+            self._create_video_writer()
 
         # Initialize data structures
-        self.__sensory_input = None
-        self.__inject_to_last_popul = None
-        self.__init_model()
-        self.__init_sensory_input()
+        self._sensory_input = None
+        self._inject_to_last_popul = None
+        self._init_model()
+        self._init_sensory_input()
 
         # Those should be the max expected value of the connections and of the neurons.
         # It's the max value from which every higher value will be with the same color
         # in the visualization
-        self.__connections_max_res = self.__determine_weights_res()
-        self.__neurons_max_res = self.__thresh
+        self._connections_max_res = self._determine_weights_res()
+        self._neurons_max_res = self._thresh
 
 
-    def __create_video_writer(self):
-        h, w, _ = self.__visualization_frame.shape
-        self.__record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
+    def _create_video_writer(self):
+        h, w, _ = self._visualization_frame.shape
+        self._record_writer = cv2.VideoWriter(RECORD_SAVE_NAME + '.avi',
                                                cv2.VideoWriter_fourcc(*'XVID'),
                                                10, (w, h))
 
 
-    def __determine_weights_res(self):
+    def _determine_weights_res(self):
         max_value = 0.
         # Iterate only on synapses from the first layer, assuming it represents well
         # all the others
-        for mat, idx in self.__synapses_matrices[0][0]:
+        for mat, idx in self._synapses_matrices[0][0]:
             mat_max = np.max(mat)
             max_value = mat_max if mat_max > max_value else max_value
 
@@ -158,9 +146,9 @@ class BrainNN:
         return max_value * 2
 
 
-    def __init_model(self):
-        excitatory_details, IINs_per_layer = self.__conf_args[BrainNN.NODES_DETAILS], \
-                                             self.__conf_args[
+    def _init_model(self):
+        excitatory_details, IINs_per_layer = self._conf_args[BrainNN.NODES_DETAILS], \
+                                             self._conf_args[
                                                  BrainNN.IINS_PER_LAYER_NUM]
         assert len(excitatory_details) == len(IINs_per_layer), "Population number " \
                                                                "doesn't match between " \
@@ -168,48 +156,48 @@ class BrainNN:
                                                                "the IINs details"
 
         # each sub-list is a population
-        self.__neurons_per_layer = [[exitatories + IINs[i] for i in range(len(IINs))]
+        self._neurons_per_layer = [[exitatories + IINs[i] for i in range(len(IINs))]
                                     for
                                     exitatories, IINs in list(zip(excitatory_details,
                                                                   IINs_per_layer))]
 
-        self.__IINs_start_per_popul = excitatory_details[:]
+        self._IINs_start_per_popul = excitatory_details[:]
 
         # each sub-list is a population
-        self.__layers = BrainNN.__create_layers_np_arrays(self.__neurons_per_layer)
+        self._layers = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
 
         # Required for iterating
         # This is what is added to the layers after each time step
-        self.__change_in_layers = BrainNN.__create_layers_np_arrays(
-            self.__neurons_per_layer)
-        self.__prev_shots = BrainNN.__create_layers_np_arrays(self.__neurons_per_layer)
-        self.__current_shots = BrainNN.__create_layers_np_arrays(self.__neurons_per_layer)
+        self._change_in_layers = BrainNN._create_layers_np_arrays(
+            self._neurons_per_layer)
+        self._prev_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
+        self._current_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
 
-        self.__create_connections()
+        self._create_connections()
 
 
     @staticmethod
-    def __create_layers_np_arrays(neurons_per_layer):
+    def _create_layers_np_arrays(neurons_per_layer):
         return [[np.zeros(population_neurons[i]) for i in range(len(
             population_neurons))] for population_neurons in neurons_per_layer]
 
 
-    def __create_connections(self):
+    def _create_connections(self):
         # Initialize the connections with some randomness
-        mean = self.__conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN]
-        std = self.__conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
-        IINs_factor = self.__conf_args[BrainNN.IINS_STRENGTH_FACTOR]
+        mean = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN]
+        std = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
+        IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
 
         # This determines for each layer if it will have inter-connections
-        self.__inter_connections_flags = self.__conf_args[
+        self._inter_connections_flags = self._conf_args[
             BrainNN.INTER_CONNECTIONS_PER_LAYER]
 
         # Arranged in [ population list[ layer list[matrices from layer to other
         # ones:= [matrix, (popul_dst_idx, layer_dst_idx) ] ] ]
-        self.__synapses_matrices = []
-        for popul_idx, population_neurons in enumerate(self.__neurons_per_layer):
+        self._synapses_matrices = []
+        for popul_idx, population_neurons in enumerate(self._neurons_per_layer):
             population_list = []
-            self.__synapses_matrices.append(population_list)
+            self._synapses_matrices.append(population_list)
 
             for cur_layer_idx, layer_neurons_num in enumerate(population_neurons):
                 layer_list = []
@@ -223,18 +211,18 @@ class BrainNN:
                 # matrices. So normalize the values in each row over the matrices.
                 normalize_vec = np.zeros((layer_neurons_num,))
                 for popul_idx_to_connect in range(popul_idx,
-                                                  len(self.__neurons_per_layer)):
-                    popul_to_connect = self.__neurons_per_layer[popul_idx_to_connect]
+                                                  len(self._neurons_per_layer)):
+                    popul_to_connect = self._neurons_per_layer[popul_idx_to_connect]
 
                     # Determine inter-connections inside the population's layers
 
-                    popul_layers_inter_conns = self.__validate_inter_connections_format(
+                    popul_layers_inter_conns = self._validate_inter_connections_format(
                         popul_idx, popul_to_connect)
 
                     for layer_to_conn_idx, layer_to_conn in enumerate(popul_to_connect):
                         # Create connections to layer "layer_to_connect" from current
                         # layer
-                        self.__create_connections_between_2_layers(layer_neurons_num,
+                        self._create_connections_between_2_layers(layer_neurons_num,
                                                                    layer_to_conn,
                                                                    layer_list,
                                                                    cur_layer_idx,
@@ -245,15 +233,15 @@ class BrainNN:
                                                                    popul_layers_inter_conns)
                         normalize_vec += layer_list[-1][0].sum(axis=1)
                 # The IINs might be stronger than the excitatory
-                normalize_vec[self.__IINs_start_per_popul[popul_idx]:] /= IINs_factor
+                normalize_vec[self._IINs_start_per_popul[popul_idx]:] /= IINs_factor
 
                 # Now normalize the output from each neuron as explained above the loop
                 for i in range(len(layer_list)):
                     mat = layer_list[i][0]
-                    layer_list[i][0] = self.__thresh * mat / normalize_vec[:, np.newaxis]
+                    layer_list[i][0] = self._thresh * mat / normalize_vec[:, np.newaxis]
 
 
-    def __create_connections_between_2_layers(self, layer_neurons_num,
+    def _create_connections_between_2_layers(self, layer_neurons_num,
                                               l_to_conn_neurons_n,
                                               layer_list,
                                               cur_layer_idx,
@@ -271,7 +259,7 @@ class BrainNN:
                                                         l_to_conn_neurons_n)),
                            idxs])
 
-        IINs_start_idx = self.__IINs_start_per_popul[popul_idx]
+        IINs_start_idx = self._IINs_start_per_popul[popul_idx]
 
         # Prevent self loops
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
@@ -309,13 +297,13 @@ class BrainNN:
             layer_list[-1][0][IINs_start_idx:, :] = 0
 
             # # Prevent excitatory neurons to shoot into other layer's IINs
-            # IINs_start_idx_to_connect = self.__IINs_start_per_popul[
+            # IINs_start_idx_to_connect = self._IINs_start_per_popul[
             #     popul_idx_to_connect]
             # layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
-        dist_fac = self.__conf_args[BrainNN.SYNAPSE_DISTANCE_FACTOR]
+        dist_fac = self._conf_args[BrainNN.SYNAPSE_DISTANCE_FACTOR]
 
         # for the same layer treat differently:
         if popul_idx_to_connect == popul_idx:
@@ -323,7 +311,7 @@ class BrainNN:
             # other, and node connections get stronger
 
             # only mess with the excitatory neurons
-            extory_num = self.__IINs_start_per_popul[popul_idx]
+            extory_num = self._IINs_start_per_popul[popul_idx]
 
             size = layer_list[-1][0].shape
             mult_mat = np.ones(size)
@@ -338,10 +326,10 @@ class BrainNN:
             layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
 
 
-    def __validate_inter_connections_format(self, popul_idx, popul_to_connect):
-        popul_layers_inter_conns = self.__inter_connections_flags
+    def _validate_inter_connections_format(self, popul_idx, popul_to_connect):
+        popul_layers_inter_conns = self._inter_connections_flags
         # Make sure the dimensions are right
-        if len(popul_layers_inter_conns) != len(self.__layers) or \
+        if len(popul_layers_inter_conns) != len(self._layers) or \
                 len(popul_layers_inter_conns[popul_idx]) != len(
             popul_to_connect):
             # It means the setup is not defined properly
@@ -350,21 +338,21 @@ class BrainNN:
                   "as the layers in the model are!")
         else:
             # It means everything is fine
-            popul_layers_inter_conns = self.__inter_connections_flags[
+            popul_layers_inter_conns = self._inter_connections_flags[
                 popul_idx]
         return popul_layers_inter_conns
 
 
-    def __init_sensory_input(self):
+    def _init_sensory_input(self):
         # The sensory input array. Only to the lower layer in the first population,
         # not to the IINs in it
-        self.__sensory_input = np.zeros(self.__IINs_start_per_popul[0])
+        self._sensory_input = np.zeros(self._IINs_start_per_popul[0])
 
         # Arrays to inject to the last population. To all layers in the last population
-        last_popul_excitatory_neurons_num = self.__IINs_start_per_popul[-1]
-        self.__inject_to_last_popul = [
+        last_popul_excitatory_neurons_num = self._IINs_start_per_popul[-1]
+        self._inject_to_last_popul = [
             np.zeros(last_popul_excitatory_neurons_num) for i
-            in range(len(self.__layers[-1]))]
+            in range(len(self._layers[-1]))]
 
 
     def save_state(self, name=None, overwrite=True):
@@ -386,10 +374,10 @@ class BrainNN:
             save_name += str(i)
 
         with open(save_name + SAVE_SUFFIX, 'wb') as f:
-            rw = self.__record_writer
-            self.__record_writer = None
+            rw = self._record_writer
+            self._record_writer = None
             dill.dump(self, f)
-            self.__record_writer = rw
+            self._record_writer = rw
 
 
     @staticmethod
@@ -419,8 +407,8 @@ class BrainNN:
         while input_generator(self):
             self.step()
 
-        if self.__record_writer:
-            self.__record_writer.release()
+        if self._record_writer:
+            self._record_writer.release()
         self.save_state()
 
 
@@ -432,14 +420,14 @@ class BrainNN:
         :return:
         """
         # Update the input and the injection to the last layer
-        IINs_start_inp_popul = self.__IINs_start_per_popul[0]
-        IINs_start_out_popul = self.__IINs_start_per_popul[-1]
-        self.__layers[0][0][:IINs_start_inp_popul] += self.__sensory_input
-        for i, layer in enumerate(self.__layers[-1]):
-            self.__layers[-1][i][:IINs_start_out_popul] += \
-                self.__inject_to_last_popul[i]
+        IINs_start_inp_popul = self._IINs_start_per_popul[0]
+        IINs_start_out_popul = self._IINs_start_per_popul[-1]
+        self._layers[0][0][:IINs_start_inp_popul] += self._sensory_input
+        for i, layer in enumerate(self._layers[-1]):
+            self._layers[-1][i][:IINs_start_out_popul] += \
+                self._inject_to_last_popul[i]
         # Iterate
-        self.__iterate()
+        self._iterate()
         self.visualize()
 
 
@@ -448,7 +436,7 @@ class BrainNN:
         Fix the synapses
         :return:
         """
-        self.__freeze=True
+        self._freeze = True
 
 
     def unfreeze(self):
@@ -456,7 +444,7 @@ class BrainNN:
         Allow synapses plasticity
         :return:
         """
-        self.__freeze = False
+        self._freeze = False
 
 
     def zero_neurons(self):
@@ -466,19 +454,19 @@ class BrainNN:
         :return:
         """
         # Zero the neurons
-        for popul in self.__layers:
+        for popul in self._layers:
             for layer in popul:
                 layer.fill(0)
 
         # Zero the injection
-        for i in range(len(self.__inject_to_last_popul)):
-            self.__inject_to_last_popul[i].fill(0)
+        for i in range(len(self._inject_to_last_popul)):
+            self._inject_to_last_popul[i].fill(0)
 
         # Zero the current and previous shots
-        for popul_idx, popul_shots in enumerate(self.__current_shots):
+        for popul_idx, popul_shots in enumerate(self._current_shots):
             for i in range(len(popul_shots)):
                 popul_shots[i].fill(0)
-                self.__prev_shots[popul_idx][i].fill(0)
+                self._prev_shots[popul_idx][i].fill(0)
 
 
     def set_sensory_input(self, arr):
@@ -488,9 +476,9 @@ class BrainNN:
         layer's excitatory part in the first population.
         :return:
         """
-        assert arr.shape == self.__sensory_input.shape, "Sensory input inserted is in " \
+        assert arr.shape == self._sensory_input.shape, "Sensory input inserted is in " \
                                                         "wrong shape!"
-        self.__sensory_input = arr
+        self._sensory_input = arr
 
 
     def set_last_popul_injection(self, arr_list):
@@ -506,22 +494,22 @@ class BrainNN:
             return
 
         # Make sure all the dimension are right
-        if len(arr_list) == len(self.__inject_to_last_popul):
+        if len(arr_list) == len(self._inject_to_last_popul):
             for inject_arr_idx, inject_arr in enumerate(arr_list):
                 # Allow not to inject to a specific layer
                 if inject_arr is None:
                     continue
-                if inject_arr.shape != self.__inject_to_last_popul[inject_arr_idx].shape:
+                if inject_arr.shape != self._inject_to_last_popul[inject_arr_idx].shape:
                     raise ValueError("inject to last popult during training with wrong "
                                      "dimension!")
-                self.__inject_to_last_popul[inject_arr_idx] = arr_list[inject_arr_idx]
+                self._inject_to_last_popul[inject_arr_idx] = arr_list[inject_arr_idx]
 
 
     def get_shot_threshold(self):
         """
         :return: neurons voltage threshold it must pass to shoot.
         """
-        return self.__thresh
+        return self._thresh
 
 
     def get_output(self, get_shots=False, whole_popul=False):
@@ -532,11 +520,11 @@ class BrainNN:
         :param get_shots: if set to True, the shots instead of the values will be returned
         :return: The output of the brainNN
         """
-        last_popul = self.__current_shots[-1] if get_shots else self.__layers[-1]
-        excitatory_neurons_num = self.__IINs_start_per_popul[-1]
+        last_popul = self._current_shots[-1] if get_shots else self._layers[-1]
+        excit_neuron_n = self._IINs_start_per_popul[-1]
         if whole_popul:
-            return last_popul
-        return last_popul[0][:excitatory_neurons_num]
+            return [last_popul[i][:excit_neuron_n] for i in range(len(last_popul))]
+        return last_popul[0][:excit_neuron_n]
 
 
     def get_sensory_input(self):
@@ -544,69 +532,69 @@ class BrainNN:
         Only for debug purposes
         :return: the current sensory input to the net
         """
-        return self.__sensory_input
+        return self._sensory_input
 
 
-    def __iterate(self):
+    def _iterate(self):
         """
         update all of the neurons and all of the connections one time step forward
         TODO: implement more efficient
         :return:
         """
-        for cur_popul_idx, cur_popul in enumerate(self.__layers):
+        for cur_popul_idx, cur_popul in enumerate(self._layers):
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
-                self.__current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >
-                                                                      self.__thresh) * 1
-                cur_shots = self.__current_shots[cur_popul_idx][cur_layer_idx]
+                self._current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >
+                                                                      self._thresh) * 1
+                cur_shots = self._current_shots[cur_popul_idx][cur_layer_idx]
 
                 # Deduce from those who fired
                 # Counting on that it resets after each time stamp
-                self.__change_in_layers[cur_popul_idx][
+                self._change_in_layers[cur_popul_idx][
                     cur_layer_idx] -= cur_shots * cur_layer
 
                 # IINs Deduce voltage
-                INNs_idx = self.__IINs_start_per_popul[cur_popul_idx]
+                INNs_idx = self._IINs_start_per_popul[cur_popul_idx]
                 cur_shots[INNs_idx:] *= -1
 
-                matrices_from_cur_layer = self.__synapses_matrices[cur_popul_idx][
+                matrices_from_cur_layer = self._synapses_matrices[cur_popul_idx][
                     cur_layer_idx]
 
                 for matrix, dst_idxs in matrices_from_cur_layer:
-                    self.__change_in_layers[dst_idxs[0]][
+                    self._change_in_layers[dst_idxs[0]][
                         dst_idxs[1]] += cur_shots @ matrix
 
         # Update all layers and reset the "change_in_layers" help array
-        for cur_popul_idx, cur_popul in enumerate(self.__layers):
+        for cur_popul_idx, cur_popul in enumerate(self._layers):
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
                 # Make sure the IINs doesn't diminish too much to negatate the value
-                cur_layer += np.maximum(self.__change_in_layers[cur_popul_idx][
+                cur_layer += np.maximum(self._change_in_layers[cur_popul_idx][
                                             cur_layer_idx], -cur_layer)
-                self.__change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
+                self._change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
 
-        if not self.__freeze:
-            self.__update_weights()
+        if not self._freeze:
+            self._update_weights()
 
 
-    def __update_weights(self):
+    def _update_weights(self):
         """
         TODO: implement more efficient. can be easily done by inserting it during the
               process of firing, as described in the doc.
         :return:
         """
-        syn_mem_fac = self.__synapse_memory_factor
+        syn_mem_fac = self._syn_memory_factor
         # Iterate over the layers
-        for cur_popul_idx, cur_popul in enumerate(self.__layers):
+        for cur_popul_idx, cur_popul in enumerate(self._layers):
             for cur_layer_idx in range(len(cur_popul)):
                 # Get the shots of the current layer's neurons, in the previous time step
-                cur_layer_prev_shots = self.__prev_shots[cur_popul_idx][cur_layer_idx]
+                cur_layer_prev_shots = self._prev_shots[cur_popul_idx][cur_layer_idx]
 
                 # Get the matrices out of the current layer to other layers
-                matrices_from_cur_layer = self.__synapses_matrices[cur_popul_idx][
+                matrices_from_cur_layer = self._synapses_matrices[cur_popul_idx][
                     cur_layer_idx]
 
                 for idx, mat_data in enumerate(matrices_from_cur_layer):
                     matrix, dst_idxs = mat_data
-                    dst_layer_cur_shots = self.__current_shots[dst_idxs[0]][dst_idxs[1]]
+                    dst_layer_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
 
                     # who didn't previously shot get -1 to decrease if the dst neuron
                     # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to make 1
@@ -619,11 +607,11 @@ class BrainNN:
                     assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
                                                   dst_layer_cur_shots.shape[0])
 
-                    self.__synapses_matrices[cur_popul_idx][cur_layer_idx][idx][0] = \
-                        self.__update_synapses_matrix(shots_matrix, matrix)
+                    self._synapses_matrices[cur_popul_idx][cur_layer_idx][idx][0] = \
+                        self._update_synapses_matrix(shots_matrix, matrix)
 
                 # Update prev_shots
-                self.__prev_shots[cur_popul_idx][cur_layer_idx] = self.__current_shots[
+                self._prev_shots[cur_popul_idx][cur_layer_idx] = self._current_shots[
                                                                       cur_popul_idx][
                                                                       cur_layer_idx] * (
                                                                           1 -
@@ -632,7 +620,7 @@ class BrainNN:
                                                                   * syn_mem_fac
 
 
-    def __update_synapses_matrix(self, shots_mat, cur_synapses_mat):
+    def _update_synapses_matrix(self, shots_mat, cur_synapses_mat):
         # Update only on some probability. Otherwise leave the synapse unchanged by
         # setting the updation for it to zero
         ones_idxs = (shots_mat == 1)
@@ -641,14 +629,14 @@ class BrainNN:
         # Determine who will get increased by probability
         shots_mat[ones_idxs] *= (
                 np.random.uniform(
-                    size=(np.count_nonzero(ones_idxs))) < self.__change_prob_increase)
+                    size=(np.count_nonzero(ones_idxs))) < self._syn_inc_prob)
         # Determine who will get decreased by probability
         shots_mat[neg_ones_idxs] *= (
                 np.random.uniform(
-                    size=(np.count_nonzero(neg_ones_idxs))) < self.__change_prob_decrease)
+                    size=(np.count_nonzero(neg_ones_idxs))) < self._syn_dec_prob)
 
         weighted_synapses_matrix = np.multiply(shots_mat, cur_synapses_mat)
-        updated_mat = self.__create_update_mat(
+        updated_mat = self._create_update_mat(
             weighted_synapses_matrix) + cur_synapses_mat
 
         # Make sure no weight is negative
@@ -664,10 +652,26 @@ class BrainNN:
                                        columns_sum_cur_mat), 1)
 
 
-    def __create_update_mat(self, weighted_syn_mat):
+    def _create_update_mat(self, weighted_syn_mat):
         return np.where(weighted_syn_mat > 0,
-                        self.__syn_inc_func(weighted_syn_mat),
-                        self.__syn_dec_func(weighted_syn_mat))
+                        self._syn_inc_func(weighted_syn_mat),
+                        self._syn_dec_func(weighted_syn_mat))
+
+
+    def set_increase_func(self, increase_func):
+        self._syn_inc_func = increase_func
+
+
+    def set_increase_prob(self, increase_prob):
+        self._syn_inc_prob = increase_prob
+
+
+    def set_decrease_func(self, decrease_func):
+        self._syn_dec_func = decrease_func
+
+
+    def set_decrease_prob(self, decrease_prob):
+        self._syn_dec_prob = decrease_prob
 
 
     def set_visualization(self, vis_func_str):
@@ -677,25 +681,25 @@ class BrainNN:
         in the inner visualization functions dictionary.
         :return:
         """
-        self.visualize = self.__visualize_dict.get(vis_func_str,
-                                                   self.__default_visualize)
+        self.visualize = self._visualize_dict.get(vis_func_str,
+                                                   self._default_visualize)
 
 
-    def __default_visualize(self, debug=False):
+    def _default_visualize(self, debug=False):
         """
         visualize the model according to it's current state and the visualization
         parameters chosen in the beginning.
         :return:
         """
-        frame = self.__visualization_frame
+        frame = self._visualization_frame
         show_during_the_run = True
         h, w, _ = frame.shape
 
         # If recording:
-        record = self.__vis_record[0]
+        record = self._vis_record[0]
         if record:
-            show_during_the_run = self.__vis_record[1]
-            out = self.__record_writer
+            show_during_the_run = self._vis_record[1]
+            out = self._record_writer
 
         neuron_size = 5
         line_thick = 1
@@ -704,9 +708,9 @@ class BrainNN:
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
         # Each popul gets an equal part of the frame
-        popul_gap = w // len(self.__layers)
+        popul_gap = w // len(self._layers)
 
-        for popul_idx, population_neurons in enumerate(self.__layers):
+        for popul_idx, population_neurons in enumerate(self._layers):
             layers_num = len(population_neurons)
             layer_gap_y = h // layers_num
             layer_gap_x = popul_gap // layers_num
@@ -715,31 +719,31 @@ class BrainNN:
                 neurons_gap = layer_gap_y // (len(cur_layer) + 1)
 
                 for neuron_idx, neuron in enumerate(cur_layer):
-                    location = self.__calc_location(cur_layer_idx, layer_gap_x,
+                    location = self._calc_location(cur_layer_idx, layer_gap_x,
                                                     layer_gap_y, neuron_idx,
                                                     neuron_size,
                                                     neurons_gap, popul_gap, popul_idx)
-                    shot_flag = self.__current_shots[popul_idx][cur_layer_idx][neuron_idx]
+                    shot_flag = self._current_shots[popul_idx][cur_layer_idx][neuron_idx]
 
                     # First draw connections to all other neurons
-                    self.__draw_connections_from_layer(cur_layer_idx, frame, h,
+                    self._draw_connections_from_layer(cur_layer_idx, frame, h,
                                                        line_thick, location, neuron_idx,
                                                        neuron_size, popul_gap, popul_idx,
                                                        shot_flag)
 
                     # now draw the neuron
-                    self.__draw_neuron(frame, location, neuron / self.__neurons_max_res,
+                    self._draw_neuron(frame, location, neuron / self._neurons_max_res,
                                        neuron_idx,
                                        neuron_size,
                                        popul_idx)
 
                     # In case of debugging, see each step
                     if debug:
-                        cv2.imshow(self.__vis_window_name, frame)
+                        cv2.imshow(self._vis_window_name, frame)
                         cv2.waitKey(0)
 
         if show_during_the_run:
-            cv2.imshow(self.__vis_window_name, frame)
+            cv2.imshow(self._vis_window_name, frame)
             cv2.waitKey(1)
 
         if record:
@@ -747,18 +751,18 @@ class BrainNN:
             out.write(save_frame)
 
 
-    def __draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,
+    def _draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,
                       popul_idx):
         color = (neuron_draw_val, neuron_draw_val, neuron_draw_val)
         cv2.circle(frame, location, neuron_size,
                    color,
                    thickness=-1)
         # Show the IINs by drawing a circle around them
-        if neuron_idx >= self.__IINs_start_per_popul[popul_idx]:
+        if neuron_idx >= self._IINs_start_per_popul[popul_idx]:
             cv2.circle(frame, location, neuron_size, (0, 0, 1), thickness=1)
 
 
-    def __calc_location(self, cur_layer_idx, layer_gap_x, layer_gap_y, neuron_idx,
+    def _calc_location(self, cur_layer_idx, layer_gap_x, layer_gap_y, neuron_idx,
                         neuron_size, neurons_gap, popul_gap, popul_idx):
         neuron_gap_x = layer_gap_x // 2
         layer_loc_x = popul_idx * popul_gap + cur_layer_idx * layer_gap_x
@@ -775,13 +779,13 @@ class BrainNN:
                 neuron_idx * neurons_gap)
 
 
-    def __draw_connections_from_layer(self, cur_layer_idx, frame, h, line_thick, location,
+    def _draw_connections_from_layer(self, cur_layer_idx, frame, h, line_thick, location,
                                       neuron_idx, neuron_size, popul_gap, popul_idx,
                                       shot_flag):
-        synapse_matrices = self.__synapses_matrices[popul_idx][cur_layer_idx]
+        synapse_matrices = self._synapses_matrices[popul_idx][cur_layer_idx]
         for mat, idxs in synapse_matrices:
             to_popul_idx, to_layer_idx = idxs
-            to_population_neurons = self.__layers[to_popul_idx]
+            to_population_neurons = self._layers[to_popul_idx]
 
             layers_num = len(to_population_neurons)
             to_layer_gap_y = h // layers_num
@@ -790,7 +794,7 @@ class BrainNN:
             to_neurons_gap = to_layer_gap_y // (len(to_layer) + 1)
 
             for to_neuron_idx, to_neuron in enumerate(to_layer):
-                to_location = self.__calc_location(to_layer_idx, to_layer_gap_x,
+                to_location = self._calc_location(to_layer_idx, to_layer_gap_x,
                                                    to_layer_gap_y, to_neuron_idx,
                                                    neuron_size,
                                                    to_neurons_gap, popul_gap,
@@ -808,40 +812,9 @@ class BrainNN:
                     else:
                         cv2.line(frame, location, to_location,
                                  (
-                                     0, connections_strength / self.__connections_max_res,
+                                     0, connections_strength / self._connections_max_res,
                                      0),
                                  line_thick)
-
-
-def np_softmax(x):
-    return np.exp(x) / np.sum(np.exp(x), axis=0)
-
-
-class NetWrapper:
-
-    def __init__(self, net: BrainNN, norm_func=np_softmax, noise_std=0,
-                 req_shots_count=5):
-        self.brainNN = net
-        self.__n_std = noise_std
-        self.__req_shot_count = req_shots_count
-        self.__norm_func = norm_func
-
-
-    def __call__(self, input):
-        net = self.brainNN
-        out_vec = np.zeros(net.get_output(get_shots=True).shape)
-        while np.max(out_vec) < self.__req_shot_count:
-            # insert sensory input
-            sensory_input = np.abs(np.random.normal(input, self.__n_std))
-            net.set_sensory_input(sensory_input)
-
-            net.step()
-
-            # Get the output
-            out_vec += net.get_output(get_shots=True)
-
-        # Return normalize vec
-        return self.__norm_func(out_vec)
 
 
 if __name__ == '__main__':
