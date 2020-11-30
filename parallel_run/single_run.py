@@ -13,7 +13,7 @@ from src.utils.general_utils import save_json
 import argparse
 
 SAVE_PATH = "tmp/"
-SAVE_NAME = "single_run data"
+SAVE_NAME = "single_run_data"
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
