@@ -2,7 +2,7 @@
 
 
 for i in {1..2};do
-  sbatch -W -c1 --mem=500m --time=15 single_run $i
+  sbatch -W -c1 --mem=500m --time=15 single_run.sh $i
 done
 wait
 
