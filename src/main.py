@@ -1,11 +1,11 @@
 # Writer: Gal Harari
 # Date: 23/07/2020
-from binary_prediction import create_binary_input_generator, N, \
+from src.binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn, BinaryDataLoader
-from brainNN import BrainNN
-from utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
+from src.brainNN import BrainNN
+from src.utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
-from hooks import ClassesEvalHook, SaveByEvalHook
+from src.hooks import ClassesEvalHook, SaveByEvalHook
 import cv2
 
 LOAD = False
