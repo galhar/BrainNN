@@ -63,7 +63,7 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
     if hasattr(net_data_func_with_attr, 'z_label'):
         titles['z_label'] = net_data_func_with_attr.z_label
 
-    if not load_path:
+    if not load:
         iterations_vec = []
         for i in tqdm(range(iterations)):
             iterations_vec.append(net_data_func_with_attr())
@@ -74,7 +74,7 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
                                               f" {current_time}")
     elif isinstance(load, str):
         # Here it means we got the data path to load from
-        iterations_vec = load_json(DATA_PATH + load_path)
+        iterations_vec = load_json(DATA_PATH + load)
     else:
         # Here it means we got the data as an array
         iterations_vec = load
