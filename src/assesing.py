@@ -7,7 +7,7 @@ import numpy as np
 import pickle
 import time
 from tqdm import tqdm
-from utils.general_utils import save_json, load_json
+from src.utils.general_utils import save_json, load_json
 
 # This import registers the 3D projection, but is otherwise unused.
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -16,7 +16,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from main import trainer_train, script_training, trainer_evaluation
+from src.main import trainer_train, script_training, trainer_evaluation
 
 DATA_PATH = '../records/'
 
