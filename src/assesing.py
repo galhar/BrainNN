@@ -196,4 +196,4 @@ if __name__ == '__main__':
     load_bigger_inner_layer = "Accuracy Over Epoches records 11_24_20 05_56"
     check_func = trainer_evaluation
     setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=30, load=load_path, scatter=True)
+    average_over_nets(check_func, iterations=20, scatter=True)
