@@ -27,7 +27,7 @@ def save_json(data, name):
     :param name: name to save as without suffix
     :return:
     """
-    save_name = name + "" if JSON_SUFFIX in name else JSON_SUFFIX
+    save_name = name + ("" if JSON_SUFFIX in name else JSON_SUFFIX)
     with open(save_name, "w") as f:
         json.dump(data, f, cls=NumpyEncoder)
 
@@ -38,7 +38,7 @@ def load_json(name):
     :param name: name to load from without suffix or with suffix
     :return:
     """
-    load_name = name + "" if JSON_SUFFIX in name else JSON_SUFFIX
+    load_name = name + ("" if JSON_SUFFIX in name else JSON_SUFFIX)
     with open(load_name, "r") as f:
         data = json.load(f)
     return data

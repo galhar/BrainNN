@@ -4,9 +4,9 @@ OUTPUT="/cs/usr/galhar/research/BrainNN/records"
 
 cd ../
 
-source thesis_sed/bin/activate
+source env/bin/activate.csh
 
-cd src
+cd parallel_run
 
 
 for i in {1..2};do

@@ -6,6 +6,7 @@ from brainNN import BrainNN
 from utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
 from hooks import ClassesEvalHook
+import cv2
 
 LOAD = False
 
@@ -34,9 +35,12 @@ def script_training(epoches=14):
                           BrainNN.SYNAPSE_INCREASE_PROBABILITY: inc_prob}
 
     if LOAD:
-        brainNN = BrainNN.load_model()
+        brainNN = BrainNN.load_model({BrainNN.VISUALIZATION_FUNC_STR: 'default'})
     else:
         brainNN = BrainNN(configuration_args)
+
+    brainNN.visualize()
+    cv2.waitKey()
 
     brainNN.set_visualization(vis_str)
 
@@ -80,5 +84,5 @@ def create_trainer(epoches=17):
 
 
 if __name__ == '__main__':
-    # script_training(epoches=10)
-    trainer_train(epoches=10)
+    script_training(epoches=1)
+    # trainer_train(epoches=10)

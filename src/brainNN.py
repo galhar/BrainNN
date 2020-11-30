@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import os.path
 import dill
+from utils.general_utils import save_json, load_json
 
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
 SAVE_NAME = 'saved_model'
@@ -46,6 +47,11 @@ class BrainNN:
     INTER_CONNECTIONS_PER_LAYER = 'Stats for each layer if it has inter-connections'
     RECORD_FLAG = 'Record the chosen visualization of the run. Also allows to disable ' \
                   'viewing if recording. [to_record_, to_show_during_run]'
+    SAVE_SYNAPSES = 'Saved Synapses associated string'
+    SAVE_NEURONS = 'Saved layers\' neurons associated string'
+
+    # The parameters requires to save a net in the configuration arguments
+    _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM]
 
     default_configuration = {
         # Neuron parameters
@@ -71,7 +77,7 @@ class BrainNN:
         VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
-        RECORD_FLAG: [True, True]
+        RECORD_FLAG: [False, False]
 
     }
 
@@ -189,7 +195,7 @@ class BrainNN:
         IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
 
         # This determines for each layer if it will have inter-connections
-        self._inter_connections_flags = self._conf_args[
+        inter_connections_flags = self._conf_args[
             BrainNN.INTER_CONNECTIONS_PER_LAYER]
 
         # Arranged in [ population list[ layer list[matrices from layer to other
@@ -217,7 +223,7 @@ class BrainNN:
                     # Determine inter-connections inside the population's layers
 
                     popul_layers_inter_conns = self._validate_inter_connections_format(
-                        popul_idx, popul_to_connect)
+                        popul_idx, popul_to_connect, inter_connections_flags)
 
                     for layer_to_conn_idx, layer_to_conn in enumerate(popul_to_connect):
                         # Create connections to layer "layer_to_connect" from current
@@ -326,19 +332,18 @@ class BrainNN:
             layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
 
 
-    def _validate_inter_connections_format(self, popul_idx, popul_to_connect):
-        popul_layers_inter_conns = self._inter_connections_flags
+    def _validate_inter_connections_format(self, popul_idx, popul_to_connect,
+                                           popul_layers_inter_conns):
         # Make sure the dimensions are right
         if len(popul_layers_inter_conns) != len(self._layers) or \
-                len(popul_layers_inter_conns[popul_idx]) != len(
-            popul_to_connect):
+                len(popul_layers_inter_conns[popul_idx]) != len(popul_to_connect):
             # It means the setup is not defined properly
             popul_layers_inter_conns = None
             print("The inter-connections flags are not the same dimension "
                   "as the layers in the model are!")
         else:
             # It means everything is fine
-            popul_layers_inter_conns = self._inter_connections_flags[
+            popul_layers_inter_conns = popul_layers_inter_conns[
                 popul_idx]
         return popul_layers_inter_conns
 
@@ -373,27 +378,63 @@ class BrainNN:
                 i += 1
             save_name += str(i)
 
-        with open(save_name + SAVE_SUFFIX, 'wb') as f:
-            rw = self._record_writer
-            self._record_writer = None
-            dill.dump(self, f)
-            self._record_writer = rw
+        # Save self._layers, self._synapses_matrices
+        save_dict = {
+            BrainNN.SAVE_NEURONS: self._layers,
+            BrainNN.SAVE_SYNAPSES: self._synapses_matrices
+        }
+
+        # Save everything defined by the class as required in saving and loading.
+        # originally it was only NODES_DETAILS, IINS_PER_LAYER_NUM
+        for argument in BrainNN._required_to_save:
+            save_dict[argument] = self._conf_args[argument]
+
+        save_json(save_dict, save_name)
 
 
     @staticmethod
-    def load_model(name=None):
+    def load_model(conf_args=None, name=None):
         """
         load the model. Default name to load from is the default name to save with.
+        :param conf_args: configuration arguments for building the new net. Only the
+        neurons and synapses are loaded, the rest is being rebuild
         :param name: name to load from. Without suffix.
         :return:
         """
         load_name = name if name else SAVE_NAME
-        with open(load_name + SAVE_SUFFIX, 'rb') as f:
-            loaded = dill.load(f)
+        loaded_dict = load_json(load_name)
 
-        if loaded.__vis_record[0]:
-            loaded.__create_video_writer()
-        return loaded
+        # Create the configuration dictionary for the network
+        if conf_args is None:
+            conf_args = {}
+
+        # Update the fields defined by the class that must be saved and loaded
+        for argument in BrainNN._required_to_save:
+            conf_args[argument] = loaded_dict[argument]
+
+        # Build the net from the dict
+        net = BrainNN(conf_args)
+
+        # Update the net's synapses and neurons
+        # Load the synapses and make them into numpy matrices
+        syn_mats_as_np = []
+        syn_mats_as_list = loaded_dict[BrainNN.SAVE_SYNAPSES]
+        for popul_syn_mats in syn_mats_as_list:
+            syn_mats_as_np.append([])
+            for layer_syn_mats in popul_syn_mats:
+                syn_mats_as_np[-1].append([[np.array(mat), idxs] for mat, idxs in
+                                       layer_syn_mats])
+
+        net._synapses_matrices = syn_mats_as_np
+
+        # Load the layers' neurons and make them into numpy array for every layer
+        layers_as_list = loaded_dict[BrainNN.SAVE_NEURONS]
+        net._layers = [[np.array(layer) for layer in popul] for popul in layers_as_list]
+
+        # re-calculate the desired resolution
+        net._connections_max_res = net._determine_weights_res()
+
+        return net
 
 
     def train(self, input_generator):
@@ -407,8 +448,6 @@ class BrainNN:
         while input_generator(self):
             self.step()
 
-        if self._record_writer:
-            self._record_writer.release()
         self.save_state()
 
 
@@ -599,9 +638,12 @@ class BrainNN:
                     # Most of the times te weights won't change:
                     if dst_layer_cur_shots.any():
                         # who didn't previously shot get -1 to decrease if the dst neuron
-                        # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to make 1
-                        # to 1 and 0 to -1. The cur_layer_prev_shots is a moving average of
-                        # previous shots. Above 0.5 will count as it shot, bellow and equal
+                        # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to
+                        # make 1
+                        # to 1 and 0 to -1. The cur_layer_prev_shots is a moving
+                        # average of
+                        # previous shots. Above 0.5 will count as it shot, bellow and
+                        # equal
                         # will count as it didn't shot.
                         shots_matrix = np.outer(2 * (cur_layer_prev_shots > 0.5) - 1,
                                                 dst_layer_cur_shots)
@@ -829,4 +871,9 @@ if __name__ == '__main__':
                      BrainNN.SHOOT_THRESHOLD: 100}
     brainNNmodel = BrainNN(configuration)
     brainNNmodel.visualize()
+    cv2.waitKey()
+    brainNNmodel.save_state()
+
+    loaded = BrainNN.load_model()
+    loaded.visualize()
     cv2.waitKey()
