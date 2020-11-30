@@ -5,7 +5,7 @@ from binary_prediction import create_binary_input_generator, N, \
 from brainNN import BrainNN
 from utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
-from hooks import ClassesEvalHook
+from hooks import ClassesEvalHook, SaveByEvalHook
 import cv2
 
 LOAD = False
@@ -60,9 +60,10 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation():
-    net, trainer = create_trainer()
+def trainer_evaluation(epoches=2):
+    net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader()))
+    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
@@ -84,5 +85,6 @@ def create_trainer(epoches=17):
 
 
 if __name__ == '__main__':
-    script_training(epoches=1)
-    # trainer_train(epoches=10)
+    # script_training(epoches=1)
+    # trainer_train(epoches=3)
+    print(trainer_evaluation(epoches=6))

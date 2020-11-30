@@ -53,6 +53,34 @@ class SaveHook(HookBase):
             self._net.save_state(name=self._save_name, overwrite=self._overwrite)
 
 
+class SaveByEvalHook(HookBase):
+    """
+    Always register after the eval hook is registered
+    """
+
+
+    def __init__(self, trainer, req_acc=70, save_name=None, overwrite=True):
+        """
+
+        :param trainer:
+        :param save_name: name to save as without the extension
+        :param save_after: save after this number of epoches, repeatedly
+        :param overwrite: if another file with the same name exists, do you want to
+        overwrite it.
+        """
+        super().__init__(trainer)
+        self._save_name = save_name if save_name else ('NetSavedByHook acc %s' % req_acc)
+        self._overwrite = overwrite
+        self._net = trainer.net
+        self._req_acc = req_acc
+
+
+    def after_epoch(self):
+        current_acc = self._trainer.storage[ClassesEvalHook.TOT_ACC_STR][-1]
+        if current_acc >= self._req_acc:
+            self._net.save_state(name=self._save_name, overwrite=self._overwrite)
+
+
 class ClassesEvalHook(HookBase):
     CLS_ACC_STR = 'Classes accuracy over epochs'
     TOT_ACC_STR = 'Total accuracy over epochs'

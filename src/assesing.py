@@ -18,7 +18,7 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from main import trainer_train, script_training, trainer_evaluation
 
-DATA_PATH = 'records/'
+DATA_PATH = '../records/'
 
 DISABLE_SCIVIEW = True
 
@@ -78,6 +78,9 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
     else:
         # Here it means we got the data as an array
         iterations_vec = load
+        current_time = timestamp()
+        save_json(iterations_vec, DATA_PATH + f"{titles.get('title', '')} records"
+                                              f" {current_time}")
 
     if not is_3D and (type(iterations_vec[0][0]) == list or type(iterations_vec[0][0])
                       == np.ndarray):
