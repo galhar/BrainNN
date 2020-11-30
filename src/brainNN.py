@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 import os.path
 import dill
-from utils.general_utils import save_json, load_json
+from src.utils.general_utils import save_json, load_json
 
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
 SAVE_NAME = 'saved_model'
