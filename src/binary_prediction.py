@@ -4,19 +4,21 @@ from brainNN import BrainNN
 from train_utils import EvalNetWrapper
 import numpy as np
 from train_utils import DataLoaderBase
+import random
 
 N = 4
 
 
-def get_binary_rep(val, noise_std=0):
+def get_binary_rep(val, amp, noise_std=0):
     binary_represnt_list = [(val >> i) & 1 for i in range(N - 1, -1, -1)]
     binary_represnt_np = np.array(binary_represnt_list)
+    binary_represnt_np = binary_represnt_np / binary_represnt_np.sum() * amp
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
 class BinaryDataLoader(DataLoaderBase):
 
-    def __init__(self, input_amplitude=15, noise_std=0):
+    def __init__(self, batched=False, shuffle=False, input_amplitude=30, noise_std=0):
         """
         :param input_amplitude:
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the
@@ -27,10 +29,21 @@ class BinaryDataLoader(DataLoaderBase):
         self.inp_amp = input_amplitude
         self.n_std = noise_std * input_amplitude
         self._stopped_iter = True
-        self.possible_classes = [i for i in range(1, 2 ** N - 1)]
+        self.possible_classes = [i for i in range(2 ** N - 1)]
+        self._cls_lst = self.possible_classes.copy()
+        self._cur_label = self.possible_classes[0]
+        self._batched = batched
+        self._shuffle = shuffle
 
 
     def __next__(self):
+        if not self._batched:
+            return self._sequence_next()
+        else:
+            return self._batched_next()
+
+
+    def _sequence_next(self):
         # create a single batch and raise stop iteration. If last time didn't raised
         # stopIteration than this one should do it
         if not self._stopped_iter:
@@ -39,9 +52,22 @@ class BinaryDataLoader(DataLoaderBase):
         # This "next" doesn't raise stopIteration
         self._stopped_iter = False
 
-        samples_batch = [get_binary_rep(i, self.n_std) * self.inp_amp for i in
-                         range(1, 2 ** N)]
-        labels = [i for i in range(2 ** N)]
+        if self._shuffle:
+            random.shuffle(self._cls_lst)
+        samples_batch = [get_binary_rep(i + 1, self.inp_amp, self.n_std) for
+                         i in self._cls_lst]
+        labels = self._cls_lst
+        return [samples_batch, labels]
+
+
+    def _batched_next(self):
+        if self._cur_label == self.possible_classes[-1] + 1:
+            self._cur_label = self.possible_classes[0]
+            raise StopIteration
+
+        samples_batch = [get_binary_rep(self._cur_label, self.inp_amp, self.n_std)]
+        labels = [self._cur_label]
+        self._cur_label += 1
         return [samples_batch, labels]
 
 
@@ -57,7 +83,7 @@ def create_binary_input_generator(inject_answer=True, repeat_sample=5, epoches=1
 
     identified_input_shots_needed = 1
     last_popul_inject = [np.zeros(2 ** N - 1), None]
-    sensory_input = get_binary_rep(current_num, noise_std) * input_amp
+    sensory_input = get_binary_rep(current_num, input_amp, noise_std)
 
 
     def input_generator(brainNN):
@@ -98,7 +124,7 @@ def create_binary_input_generator(inject_answer=True, repeat_sample=5, epoches=1
                 print(f"Current Input change to: {current_num}")
 
             # Create the new sensory input
-            sensory_input = get_binary_rep(current_num, noise_std) * input_amp
+            sensory_input = get_binary_rep(current_num, input_amp, noise_std)
 
         if inject_answer:
             indexes_without_cur_num = (
@@ -140,7 +166,7 @@ def evaluate_binary_representation_nn(net, sequential=True, noise=0,
     correct = 0
     total = 0
     for i in range(1, (2 ** N)):
-        x = get_binary_rep(i) * inp_amp
+        x = get_binary_rep(i, inp_amp)
         y = i - 1
         output = net_wrapper(x)
         pred_y = np.argmax(output)

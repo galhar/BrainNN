@@ -4,6 +4,10 @@ import numpy as np
 import timeit
 import cv2
 import imutils
+import cProfile
+import pstats
+from main import trainer_train
+
 
 
 def test_sum_np_vs_python():
@@ -309,8 +313,12 @@ def vid_example():
     # Closes all the frames
     cv2.destroyAllWindows()
 
+def search_bottelneck():
+    profile = cProfile.Profile()
+    profile.runcall(trainer_train)
+    ps = pstats.Stats(profile)
+    ps.sort_stats('time')
+    ps.print_stats()
 
 if __name__ == '__main__':
-    # test_write_video()
-    vid_merge_example_with_test()
-    #vid_example()
+    search_bottelneck()

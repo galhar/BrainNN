@@ -26,6 +26,15 @@ class TrainNetWrapper(NetWrapperBase):
 
 
     def __call__(self, inp, label):
+        """
+        Iterate over an input and a correct label. Calls it success when counted
+        _req_shots_num times a correct shot. A 'correct shot' is when summing over the
+        shots from last 'correct shot', and the argmax of this sum is the correct
+        label. After each 'correct shot' it zeros the sum.
+        :param inp:
+        :param label:
+        :return:
+        """
         net = self.brainNN
         out_vec = np.zeros(net.get_output(get_shots=True).shape)
         correct_count = 0
@@ -33,17 +42,18 @@ class TrainNetWrapper(NetWrapperBase):
             # insert sensory input
             sensory_input = np.abs(np.random.normal(inp, self._n_std))
             net.set_sensory_input(sensory_input)
+            self._optimizer.inject_label(label)
 
             net.step()
 
             # Get the output
             out_vec += net.get_output(get_shots=True)
-            if np.argmax(out_vec) == label:
+            if np.argmax(out_vec) == label and out_vec.any():
                 if self._verbose:
                     print(f"Shot on {label}")
                 correct_count += 1
-
-            self._optimizer.inject_label(label)
+                # Zero it to restart the counting of a correct shot
+                out_vec = np.zeros(net.get_output(get_shots=True).shape)
 
 
 class EvalNetWrapper(NetWrapperBase):
@@ -55,6 +65,11 @@ class EvalNetWrapper(NetWrapperBase):
 
 
     def __call__(self, inp):
+        """
+        Finish iteration when there are more than req_shots_num from some label neuron
+        :param inp:
+        :return:
+        """
         net = self.brainNN
         out_vec = np.zeros(net.get_output(get_shots=True).shape)
         while np.max(out_vec) < self._req_shot_num:
@@ -112,7 +127,10 @@ class OptimizerBase:
 class DefaultOptimizer(OptimizerBase):
 
     def __init__(self, net: BrainNN, sample_reps, epoches, inc_prob=0.7, dec_prob=0.2):
-        OptimizerBase.__init__(self, net, lambda weights: np.full(weights.shape, 0.1),
+        # OptimizerBase.__init__(self, net, lambda weights: np.full(weights.shape, 0.1),
+        #                        lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
+        #                        inc_prob, dec_prob, sample_reps, epoches)
+        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04),
                                lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
                                inc_prob, dec_prob, sample_reps, epoches)
         # Injection array the same size as the last population. Most of the time we

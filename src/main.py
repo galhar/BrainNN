@@ -3,14 +3,14 @@
 from binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn, BinaryDataLoader
 from brainNN import BrainNN
-from train_utils import Trainer, DefaultOptimizer
+from train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
 from hooks import ClassesEvalHook
 
 LOAD = False
 
 
-def script_training():
+def script_training(epoches=14):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
     inter_connections = [(False, True), (True, True), (True, True)]
@@ -40,16 +40,16 @@ def script_training():
 
     brainNN.set_visualization(vis_str)
 
-    brainNN.train(create_binary_input_generator(inject_answer=True, epoches=14,
-                                                repeat_sample=1, verbose=False))
+    brainNN.train(create_binary_input_generator(inject_answer=True, epoches=epoches,
+                                                repeat_sample=6, verbose=False))
 
     brainNN.set_visualization(eval_vis_str)
     brainNN.freeze()
     return evaluate_binary_representation_nn(brainNN, noise=0, req_shots=5)
 
 
-def trainer_train():
-    net, trainer = create_trainer()
+def trainer_train(epoches=1):
+    net, trainer = create_trainer(epoches)
     trainer.train()
 
     net.freeze()
@@ -64,7 +64,7 @@ def trainer_evaluation():
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
-def create_trainer():
+def create_trainer(epoches=17):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
     inter_connections = [(False, True), (True, True), (True, True)]
@@ -73,12 +73,12 @@ def create_trainer():
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections}
 
     net = BrainNN(configuration_args)
-    data_loader = BinaryDataLoader()
-    optimizer = DefaultOptimizer(net=net, epoches=40, sample_reps=1)
+    data_loader = BinaryDataLoader(shuffle=True)
+    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
     trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
 
 if __name__ == '__main__':
-    # script_training()
-    trainer_evaluation()
+    # script_training(epoches=10)
+    trainer_train(epoches=10)

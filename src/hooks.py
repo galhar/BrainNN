@@ -28,13 +28,32 @@ class HookBase:
         pass
 
 
+class SaveHook(HookBase):
+
+    def __init__(self, trainer, save_name=None, save_after=5, overwrite=True):
+        """
+
+        :param trainer:
+        :param save_name: name to save as without the extension
+        :param save_after: save after this number of epoches, repeatedly
+        :param overwrite: if another file with the same name exists, do you want to
+        overwrite it.
+        """
+        super(SaveHook, self).__init__(trainer)
+        self._save_name = save_name if save_name else 'NetSavedByHook'
+        self._save_after_epoches = save_after
+        self._overwrite = overwrite
+        self._net = trainer.net
+        self._epoches_counter = 0
+
+
+    def after_epoch(self):
+        self._epoches_counter = (self._epoches_counter + 1) % self._save_after_epoches
+        if self._epoches_counter == 0:
+            self._net.save_state(name=self._save_name, overwrite=self._overwrite)
+
+
 class ClassesEvalHook(HookBase):
-
-    @staticmethod
-    def parse():
-        pass
-
-
     CLS_ACC_STR = 'Classes accuracy over epochs'
     TOT_ACC_STR = 'Total accuracy over epochs'
 
@@ -74,12 +93,12 @@ class ClassesEvalHook(HookBase):
 
                 class_correct[l] += 1 if pred_y == l else 0
                 class_total[l] += 1
+                self._net.zero_neurons()
+
             classes_acc = 100 * class_correct / class_total
             mean_acc = np.mean(classes_acc)
             # Save to trainer history
             self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
             self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
-
-            self._net.zero_neurons()
 
         self._net.unfreeze()
