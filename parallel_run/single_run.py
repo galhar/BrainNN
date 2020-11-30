@@ -20,4 +20,4 @@ if __name__ == '__main__':
     parser.add_argument("save_idx", help="saves data with the given idx in the name")
     args = parser.parse_args()
     single_run_data = trainer_evaluation()
-    save_json(single_run_data, SAVE_NAME + args.save_idx)
+    save_json(single_run_data, SAVE_PATH + SAVE_NAME + args.save_idx)
