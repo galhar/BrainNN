@@ -1,0 +1,15 @@
+# Writer: Gal Harari
+# Date: 30/11/2020
+from src.main import trainer_evaluation
+from src.utils.general_utils import save_json
+import argparse
+
+SAVE_PATH = "tmp/"
+SAVE_NAME = "single_run data"
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("save_idx", help="saves data with the given idx in the name")
+    args = parser.parse_args()
+    single_run_data = trainer_evaluation()
+    save_json(single_run_data, SAVE_NAME + args.save_idx)

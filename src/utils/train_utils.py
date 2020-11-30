@@ -1,6 +1,5 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
-from brainNN import BrainNN
 import numpy as np
 
 
@@ -10,7 +9,7 @@ def np_softmax(x):
 
 class NetWrapperBase:
 
-    def __init__(self, net: BrainNN, req_shots_num, noise_std=0, verbose=False):
+    def __init__(self, net, req_shots_num, noise_std=0, verbose=False):
         self.brainNN = net
         self._n_std = noise_std
         self._req_shot_num = req_shots_num
@@ -19,7 +18,7 @@ class NetWrapperBase:
 
 class TrainNetWrapper(NetWrapperBase):
 
-    def __init__(self, net: BrainNN, req_shots_num, optimizer, noise_std=0,
+    def __init__(self, net, req_shots_num, optimizer, noise_std=0,
                  verbose=False):
         super().__init__(net, req_shots_num, noise_std, verbose)
         self._optimizer = optimizer
@@ -58,7 +57,7 @@ class TrainNetWrapper(NetWrapperBase):
 
 class EvalNetWrapper(NetWrapperBase):
 
-    def __init__(self, net: BrainNN, noise_std=0,
+    def __init__(self, net, noise_std=0,
                  req_shots_num=5, norm_func=np_softmax):
         super().__init__(net, req_shots_num=req_shots_num, noise_std=noise_std)
         self._norm_func = norm_func
@@ -102,7 +101,7 @@ class DataLoaderBase:
 
 class OptimizerBase:
 
-    def __init__(self, net: BrainNN, increase_func, decrease_func, increase_prob,
+    def __init__(self, net, increase_func, decrease_func, increase_prob,
                  decrease_prob, sample_reps, epoches):
         self._net = net
         self.inc_func = increase_func
@@ -126,7 +125,7 @@ class OptimizerBase:
 
 class DefaultOptimizer(OptimizerBase):
 
-    def __init__(self, net: BrainNN, sample_reps, epoches, inc_prob=0.7, dec_prob=0.2):
+    def __init__(self, net, sample_reps, epoches, inc_prob=0.7, dec_prob=0.2):
         # OptimizerBase.__init__(self, net, lambda weights: np.full(weights.shape, 0.1),
         #                        lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
         #                        inc_prob, dec_prob, sample_reps, epoches)
@@ -163,7 +162,7 @@ class DefaultOptimizer(OptimizerBase):
 
 class Trainer:
 
-    def __init__(self, net: BrainNN, data_loader, optimizer: OptimizerBase,
+    def __init__(self, net, data_loader, optimizer: OptimizerBase,
                  verbose=False):
         """
 

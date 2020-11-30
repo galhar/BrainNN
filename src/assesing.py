@@ -1,13 +1,13 @@
 # Writer: Gal Harari
 # Date: 17/11/2020
-from binary_prediction import create_binary_input_generator, N, \
+from src.binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn
-from brainNN import BrainNN
+from src.brainNN import BrainNN
 import numpy as np
 import pickle
 import time
 from tqdm import tqdm
-from general_utils import save_json, load_json
+from utils.general_utils import save_json, load_json
 
 # This import registers the 3D projection, but is otherwise unused.
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -44,12 +44,13 @@ setattr(check_architecture, 'y_label', 'Accuracy')
 
 
 def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
-                      load_path=None, scatter=True):
+                      load=None, scatter=True):
     """
     :param net_data_func_with_attr: a function that returns records vector. May return a
     2D records matrix and then set is_3d to True. May return a list of records vectors,
     that some of them can be 3D, it will automatically recognize it.
     :param iterations: how many iteration to do with the net_data_func
+    :param load: load_path as a string, or the data itself to process as an array
     :return:
     """
     titles = {}
@@ -71,8 +72,12 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
         current_time = timestamp()
         save_json(iterations_vec, DATA_PATH + f"{titles.get('title', '')} records"
                                               f" {current_time}")
-    else:
+    elif isinstance(load, str):
+        # Here it means we got the data path to load from
         iterations_vec = load_json(DATA_PATH + load_path)
+    else:
+        # Here it means we got the data as an array
+        iterations_vec = load
 
     if not is_3D and (type(iterations_vec[0][0]) == list or type(iterations_vec[0][0])
                       == np.ndarray):
@@ -188,4 +193,4 @@ if __name__ == '__main__':
     load_bigger_inner_layer = "Accuracy Over Epoches records 11_24_20 05_56"
     check_func = trainer_evaluation
     setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=30, load_path=load_path, scatter=True)
+    average_over_nets(check_func, iterations=30, load=load_path, scatter=True)

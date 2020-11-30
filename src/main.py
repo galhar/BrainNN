@@ -3,7 +3,7 @@
 from binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn, BinaryDataLoader
 from brainNN import BrainNN
-from train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
+from utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
 from hooks import ClassesEvalHook
 

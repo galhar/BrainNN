@@ -1,7 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import weakref
-from train_utils import EvalNetWrapper
+from utils.train_utils import EvalNetWrapper
 import numpy as np
 
 
