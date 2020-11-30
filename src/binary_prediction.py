@@ -1,9 +1,9 @@
 # Writer: Gal Harari
 # Date: 22/07/2020
-from brainNN import BrainNN
-from utils.train_utils import EvalNetWrapper
+from src.brainNN import BrainNN
+from src.utils.train_utils import EvalNetWrapper
 import numpy as np
-from utils.train_utils import DataLoaderBase
+from src.utils.train_utils import DataLoaderBase
 import random
 
 N = 4
