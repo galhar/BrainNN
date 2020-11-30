@@ -60,7 +60,7 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=2):
+def trainer_evaluation(epoches=20):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader()))
     trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))

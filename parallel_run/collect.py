@@ -20,7 +20,7 @@ if __name__ == '__main__':
     for filename in os.listdir(SAVE_PATH):
         print("Collect data %s" % filename)
         combined_data.append(load_json(SAVE_PATH + filename))
-        os.remove(filename)
+        os.remove(SAVE_PATH + filename)
 
     print("Processing merged data...")
     average_over_nets(None, load=combined_data)
