@@ -19,7 +19,7 @@ if __name__ == '__main__':
     print("Collecting...")
     for filename in os.listdir(SAVE_PATH):
         print("Collect data %s" % filename)
-        combined_data.append(load_json(filename))
+        combined_data.append(load_json(SAVE_PATH + filename))
         os.remove(filename)
 
     print("Processing merged data...")
