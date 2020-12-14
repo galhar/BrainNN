@@ -24,6 +24,8 @@ class BrainNN:
                               'connections stronger by this factor'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
+    FEEDBACK = 'Flag (True or False) to say if there will be connections from a ' \
+               'population to lower populations'
     SYNAPSE_INCREASE_PROBABILITY = 'Probability for a synapse weight to INCREASE in ' \
                                    'case it provides the learning rule'
     SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
@@ -69,6 +71,7 @@ class BrainNN:
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
         SHOOT_THRESHOLD: 40,
+        FEEDBACK: False,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
@@ -88,6 +91,8 @@ class BrainNN:
 
         self._thresh = self._conf_args[BrainNN.SHOOT_THRESHOLD]
         self._freeze = False
+
+        self._feedback = self._conf_args[BrainNN.FEEDBACK]
 
         self._syn_memory_factor = self._conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
         self._syn_inc_func = self._conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
@@ -216,7 +221,11 @@ class BrainNN:
                 # matrices from its layer to others, only on its relevant row on these
                 # matrices. So normalize the values in each row over the matrices.
                 normalize_vec = np.zeros((layer_neurons_num,))
-                for popul_idx_to_connect in range(popul_idx,
+
+                first_popul_to_conn = popul_idx
+                if self._feedback:
+                    first_popul_to_conn = 0
+                for popul_idx_to_connect in range(first_popul_to_conn,
                                                   len(self._neurons_per_layer)):
                     popul_to_connect = self._neurons_per_layer[popul_idx_to_connect]
 
@@ -423,7 +432,7 @@ class BrainNN:
             syn_mats_as_np.append([])
             for layer_syn_mats in popul_syn_mats:
                 syn_mats_as_np[-1].append([[np.array(mat), idxs] for mat, idxs in
-                                       layer_syn_mats])
+                                           layer_syn_mats])
 
         net._synapses_matrices = syn_mats_as_np
 

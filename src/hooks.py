@@ -104,7 +104,7 @@ class ClassesEvalHook(HookBase):
         self._net_wrapper = EvalNetWrapper(self._net,
                                            noise_std=noise_std,
                                            req_shots_num=req_shots_num)
-        self._cls_lst = self._data_loader.classes
+        self._cls_lst = self._data_loader.classes_neurons
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR] = []
 
@@ -123,10 +123,11 @@ class ClassesEvalHook(HookBase):
                 class_total[l] += 1
                 self._net.zero_neurons()
 
-            classes_acc = 100 * class_correct / class_total
-            mean_acc = np.mean(classes_acc)
-            # Save to trainer history
-            self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
-            self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
+        classes_acc = 100 * class_correct / class_total
+        mean_acc = np.mean(classes_acc)
+
+        # Save to trainer history
+        self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
+        self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
 
         self._net.unfreeze()

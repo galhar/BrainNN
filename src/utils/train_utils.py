@@ -117,8 +117,12 @@ class ClassesDataLoader(DataLoaderBase):
         self._stopped_iter = True
 
         self.classes = [l for l, sample in data_array]
+        self.classes_neurons = [i for i in range(len(data_array))]
+        self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
+                                     range(len(data_array))}
+
         self.samples = [self._noise(sample) for l, sample in data_array]
-        self._cls_lst = self.classes.copy()
+        self._cls_lst = self.classes_neurons.copy()
         self._cur_label_idx = 0
 
 
@@ -144,20 +148,20 @@ class ClassesDataLoader(DataLoaderBase):
         self._stopped_iter = False
 
         if self._shuffle:
-            p = np.random.permutation(len(self.classes))
-            return [self.classes[i] for i in p], [self.samples[i] for i in p]
+            p = np.random.permutation(len(self.classes_neurons))
+            return [[self.samples[i] for i in p], [self.classes_neurons[i] for i in p]]
 
-        return [self.classes, self.samples]
+        return [self.samples, self.classes_neurons]
 
 
     def _batched_next(self):
         l_idx = self._cur_label_idx
-        if l_idx == len(self.classes[-1]):
+        if l_idx == len(self.classes_neurons):
             self._cur_label_idx = 0
             raise StopIteration
 
         samples_batch = [self.samples[l_idx]]
-        labels = [self.classes[l_idx]]
+        labels = [self.classes_neurons[l_idx]]
         self._cur_label_idx += 1
         return [samples_batch, labels]
 

@@ -3,10 +3,9 @@
 from src.brainNN import BrainNN
 from src.utils.train_utils import EvalNetWrapper
 import numpy as np
-from src.utils.train_utils import DataLoaderBase
+from src.utils.train_utils import DataLoaderBase, ClassesDataLoader
 import random
 from deprecated import deprecated
-
 
 N = 4
 
@@ -18,7 +17,7 @@ def get_binary_rep(val, amp, noise_std=0):
     return np.abs(np.random.normal(binary_represnt_np, noise_std))
 
 
-class BinaryDataLoader(DataLoaderBase):
+class BinaryDataLoader(ClassesDataLoader):
 
     def __init__(self, batched=False, shuffle=False, input_amplitude=30, noise_std=0):
         """
@@ -28,49 +27,9 @@ class BinaryDataLoader(DataLoaderBase):
         training for each insertion of the input instead, using NetWrapper. Maybe it's
         better.
         """
-        self.inp_amp = input_amplitude
-        self.n_std = noise_std * input_amplitude
-        self._stopped_iter = True
-        self.classes = [i for i in range(2 ** N - 1)]
-        self._cls_lst = self.classes.copy()
-        self._cur_label = self.classes[0]
-        self._batched = batched
-        self._shuffle = shuffle
-
-
-    def __next__(self):
-        if not self._batched:
-            return self._sequence_next()
-        else:
-            return self._batched_next()
-
-
-    def _sequence_next(self):
-        # create a single batch and raise stop iteration. If last time didn't raised
-        # stopIteration than this one should do it
-        if not self._stopped_iter:
-            self._stopped_iter = True
-            raise StopIteration
-        # This "next" doesn't raise stopIteration
-        self._stopped_iter = False
-
-        if self._shuffle:
-            random.shuffle(self._cls_lst)
-        samples_batch = [get_binary_rep(i + 1, self.inp_amp, self.n_std) for
-                         i in self._cls_lst]
-        labels = self._cls_lst
-        return [samples_batch, labels]
-
-
-    def _batched_next(self):
-        if self._cur_label == self.classes[-1] + 1:
-            self._cur_label = self.classes[0]
-            raise StopIteration
-
-        samples_batch = [get_binary_rep(self._cur_label, self.inp_amp, self.n_std)]
-        labels = [self._cur_label]
-        self._cur_label += 1
-        return [samples_batch, labels]
+        data_array = [(i, get_binary_rep(i + 1, input_amplitude, noise_std)) for i in
+                      range(2 ** N - 1)]
+        super().__init__(data_array, batched, shuffle, noise_std)
 
 
 @deprecated(reason="This method isn't supported by the 'Trainer' hierarchy")

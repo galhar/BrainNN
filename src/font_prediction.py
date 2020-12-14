@@ -7,6 +7,10 @@ import numpy as np
 from src.utils.train_utils import ClassesDataLoader
 
 
+def flatten_to_image(flat_img):
+    return np.reshape(flat_img,)
+
+
 class FontDataLoader(ClassesDataLoader):
 
     def __init__(self, data_dir, batched=False, shuffle=False, noise_std=0):
@@ -17,9 +21,7 @@ class FontDataLoader(ClassesDataLoader):
         better.
         """
         data_array = FontDataLoader.load_font_data(data_dir)
-        super().__init__(data_array,batched,shuffle,noise_std)
-
-
+        super().__init__(data_array, batched, shuffle, noise_std)
 
 
     @staticmethod
@@ -39,6 +41,5 @@ class FontDataLoader(ClassesDataLoader):
             if "resized" in file_name:
                 label = file_name.split("resized")[0]
                 img = cv.imread(data_dir + file_name) / 255.
-                data_array.append((label, img))
+                data_array.append((label, img.flatten()))
         return data_array
-
