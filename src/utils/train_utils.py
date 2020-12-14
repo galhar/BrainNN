@@ -99,6 +99,69 @@ class DataLoaderBase:
         return self
 
 
+class ClassesDataLoader(DataLoaderBase):
+
+    def __init__(self, data_array, batched=False, shuffle=False,
+                 noise_std=0):
+        """
+
+        :param data_array: [(<label>,<sample>),...]
+        :param batched:
+        :param shuffle:
+        :param noise_std:
+        """
+        self._batched = batched
+        self._shuffle = shuffle
+        self._n_std = noise_std
+
+        self._stopped_iter = True
+
+        self.classes = [l for l, sample in data_array]
+        self.samples = [self._noise(sample) for l, sample in data_array]
+        self._cls_lst = self.classes.copy()
+        self._cur_label_idx = 0
+
+
+    def _noise(self, s):
+        size = s.shape
+        return s + np.random.normal(0, self._n_std, size=size)
+
+
+    def __next__(self):
+        if not self._batched:
+            return self._sequence_next()
+        else:
+            return self._batched_next()
+
+
+    def _sequence_next(self):
+        # create a single batch and raise stop iteration. If last time didn't raised
+        # stopIteration than this one should do it
+        if not self._stopped_iter:
+            self._stopped_iter = True
+            raise StopIteration
+        # This "next" doesn't raise stopIteration
+        self._stopped_iter = False
+
+        if self._shuffle:
+            p = np.random.permutation(len(self.classes))
+            return [self.classes[i] for i in p], [self.samples[i] for i in p]
+
+        return [self.classes, self.samples]
+
+
+    def _batched_next(self):
+        l_idx = self._cur_label_idx
+        if l_idx == len(self.classes[-1]):
+            self._cur_label_idx = 0
+            raise StopIteration
+
+        samples_batch = [self.samples[l_idx]]
+        labels = [self.classes[l_idx]]
+        self._cur_label_idx += 1
+        return [samples_batch, labels]
+
+
 class OptimizerBase:
 
     def __init__(self, net, increase_func, decrease_func, increase_prob,

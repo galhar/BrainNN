@@ -4,10 +4,10 @@ import os
 import cv2 as cv
 import numpy as np
 
-from src.utils.train_utils import DataLoaderBase
+from src.utils.train_utils import ClassesDataLoader
 
 
-class FontDataLoader(DataLoaderBase):
+class FontDataLoader(ClassesDataLoader):
 
     def __init__(self, data_dir, batched=False, shuffle=False, noise_std=0):
         """
@@ -16,16 +16,9 @@ class FontDataLoader(DataLoaderBase):
         training for each insertion of the input instead, using NetWrapper. Maybe it's
         better.
         """
-        self.n_std = noise_std
-        self._batched = batched
-        self._shuffle = shuffle
-        self._stopped_iter = True
-
         data_array = FontDataLoader.load_font_data(data_dir)
-        self.classes = [l for l, img in data_array]
-        self.images = [img for l, img in data_array]
+        super().__init__(data_array,batched,shuffle,noise_std)
 
-        self._cur_label = self.classes[0]
 
 
 
@@ -49,18 +42,3 @@ class FontDataLoader(DataLoaderBase):
                 data_array.append((label, img))
         return data_array
 
-
-    def __next__(self):
-        # create a single batch and raise stop iteration. If last time didn't raised
-        # stopIteration than this one should do it
-        if not self._stopped_iter:
-            self._stopped_iter = True
-            raise StopIteration
-        # This "next" doesn't raise stopIteration
-        self._stopped_iter = False
-
-        if self._shuffle:
-            p = np.random.permutation(len(self.classes))
-            return [self.classes[i] for i in p], [self.images[i] for i in p]
-
-        return self.classes, self.images
