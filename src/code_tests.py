@@ -6,7 +6,7 @@ import cv2
 import imutils
 import cProfile
 import pstats
-from main import trainer_train
+from main_binary import trainer_train
 
 
 

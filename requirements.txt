@@ -4,3 +4,4 @@ dill~=0.3.2
 matplotlib~=3.3.0
 tqdm~=4.53.0
 imutils~=0.5.3
+Deprecated~=1.2.10

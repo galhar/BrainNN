@@ -5,6 +5,8 @@ from src.utils.train_utils import EvalNetWrapper
 import numpy as np
 from src.utils.train_utils import DataLoaderBase
 import random
+from deprecated import deprecated
+
 
 N = 4
 
@@ -29,9 +31,9 @@ class BinaryDataLoader(DataLoaderBase):
         self.inp_amp = input_amplitude
         self.n_std = noise_std * input_amplitude
         self._stopped_iter = True
-        self.possible_classes = [i for i in range(2 ** N - 1)]
-        self._cls_lst = self.possible_classes.copy()
-        self._cur_label = self.possible_classes[0]
+        self.classes = [i for i in range(2 ** N - 1)]
+        self._cls_lst = self.classes.copy()
+        self._cur_label = self.classes[0]
         self._batched = batched
         self._shuffle = shuffle
 
@@ -61,8 +63,8 @@ class BinaryDataLoader(DataLoaderBase):
 
 
     def _batched_next(self):
-        if self._cur_label == self.possible_classes[-1] + 1:
-            self._cur_label = self.possible_classes[0]
+        if self._cur_label == self.classes[-1] + 1:
+            self._cur_label = self.classes[0]
             raise StopIteration
 
         samples_batch = [get_binary_rep(self._cur_label, self.inp_amp, self.n_std)]
@@ -71,6 +73,7 @@ class BinaryDataLoader(DataLoaderBase):
         return [samples_batch, labels]
 
 
+@deprecated(reason="This method isn't supported by the 'Trainer' hierarchy")
 def create_binary_input_generator(inject_answer=True, repeat_sample=5, epoches=1,
                                   verbose=True, eval_hook=None):
     current_num = 1

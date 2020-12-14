@@ -8,7 +8,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from src.main import trainer_evaluation
+from src.main_binary import trainer_evaluation
 from src.utils.general_utils import save_json
 import argparse
 
