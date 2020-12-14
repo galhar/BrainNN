@@ -7,10 +7,12 @@ from src.utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
 from src.hooks import ClassesEvalHook, SaveByEvalHook
 import cv2
+from deprecated import deprecated
 
 LOAD = False
 
 
+@deprecated(reason="This method isn't supported by the 'Trainer' hierarchy")
 def script_training(epoches=14):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
@@ -60,9 +62,10 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=20):
+def trainer_evaluation(epoches=40):
     net, trainer = create_trainer(epoches)
-    trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader()))
+    trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader(
+        batched=True)))
     trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR

@@ -16,7 +16,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from src.main import trainer_train, script_training, trainer_evaluation
+from src.main_binary import trainer_train, script_training, trainer_evaluation
 
 DATA_PATH = '../records/'
 

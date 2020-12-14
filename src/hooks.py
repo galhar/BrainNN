@@ -104,7 +104,7 @@ class ClassesEvalHook(HookBase):
         self._net_wrapper = EvalNetWrapper(self._net,
                                            noise_std=noise_std,
                                            req_shots_num=req_shots_num)
-        self._cls_lst = self._data_loader.possible_classes
+        self._cls_lst = self._data_loader.classes
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR] = []
 
