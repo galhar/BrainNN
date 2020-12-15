@@ -4,6 +4,7 @@ from src.brainNN import BrainNN
 from src.utils.train_utils import EvalNetWrapper
 import numpy as np
 from src.utils.train_utils import DataLoaderBase, ClassesDataLoader
+from src.hooks import ClassesEvalHook
 import random
 from deprecated import deprecated
 
@@ -27,9 +28,103 @@ class BinaryDataLoader(ClassesDataLoader):
         training for each insertion of the input instead, using NetWrapper. Maybe it's
         better.
         """
-        data_array = [(i, get_binary_rep(i + 1, input_amplitude, noise_std)) for i in
+        data_array = [(i+1, get_binary_rep(i + 1, input_amplitude, noise_std)) for i in
                       range(2 ** N - 1)]
         super().__init__(data_array, batched, shuffle, noise_std)
+
+
+class BinaryOneOneDataLoader(DataLoaderBase):
+    """
+    loader that only trains on the samples that have only 1 one in their encoding
+    """
+
+
+    def __init__(self, batched=False, shuffle=False, input_amplitude=30, noise_std=0):
+        """
+        :param input_amplitude:
+        :param noise_std: This std is multiplied by the amplitude. Noise might cause the
+        model to be more robust, like dropout in ANNs. Noise can be generated during
+        training for each insertion of the input instead, using NetWrapper. Maybe it's
+        better.
+        """
+        data_array = [(i + 1, get_binary_rep(i + 1, input_amplitude, noise_std)) for i in
+                      range(2 ** N - 1)]
+
+        self._batched = batched
+        self._shuffle = shuffle
+        self._n_std = noise_std
+
+        self._stopped_iter = True
+
+        self.classes = [l for l, sample in data_array]
+        self.classes_neurons = [i for i in range(len(data_array))]
+        self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
+                                     range(len(data_array))}
+
+        self.samples = [self._noise(sample) for l, sample in data_array]
+
+        # Only thoes with 1 one in their encoding
+        ones_idxs = [i for i in range(len(data_array)) if
+                     (np.count_nonzero(self.samples[i]) < 2)]
+        self._ones_classes_neurons = [self.classes_neurons[i] for i in ones_idxs]
+        self._ones_samples = [self.samples[i] for i in ones_idxs]
+
+
+    def _noise(self, s):
+        size = s.shape
+        return s + np.random.normal(0, self._n_std, size=size)
+
+
+    def __next__(self):
+        # create a single batch and raise stop iteration. If last time didn't raised
+        # stopIteration than this one should do it
+        if not self._stopped_iter:
+            self._stopped_iter = True
+            raise StopIteration
+        # This "next" doesn't raise stopIteration
+        self._stopped_iter = False
+
+        if self._shuffle:
+            p = np.random.permutation(len(self._ones_classes_neurons))
+            return [[self._ones_samples[i] for i in p],
+                    [self._ones_classes_neurons[i] for i in p]]
+
+        return [self._ones_samples, self._ones_classes_neurons]
+
+
+class BinaryOneOneEvalHook(ClassesEvalHook):
+
+    def after_epoch(self):
+        self._net.freeze()
+        class_correct = np.zeros_like(self._cls_lst)
+        class_total = np.zeros_like(self._cls_lst)
+        neuron_to_cls = self._trainer._data_loader.neuron_to_class_dict
+
+        for sample_batch, labels in self._data_loader:
+            for i in range(len(sample_batch)):
+                sample, l = sample_batch[i], labels[i]
+                output = self._net_wrapper(sample)
+
+                # Calculate the addition of the output according to the ones number in
+                # the sample
+                n_ones = np.count_nonzero(sample > np.max(sample) * 0.5)
+                outputs = output.argsort()[-n_ones:][::-1]
+                pred_y = 0
+                for l_neuron in outputs:
+                    pred_y += int(neuron_to_cls[l_neuron])
+
+                class_correct[l] += 1 if pred_y == neuron_to_cls[l] else 0
+                class_total[l] += 1
+                self._net.zero_neurons()
+
+        classes_acc = 100 * class_correct / class_total
+        mean_acc = np.mean(classes_acc)
+
+        # Save to trainer history
+        self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
+        self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
+
+        self._net.unfreeze()
 
 
 @deprecated(reason="This method isn't supported by the 'Trainer' hierarchy")

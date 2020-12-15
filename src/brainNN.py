@@ -225,9 +225,11 @@ class BrainNN:
                 # matrices. So normalize the values in each row over the matrices.
                 normalize_vec = np.zeros((layer_neurons_num,))
 
+                # Allow backwards connections
                 first_popul_to_conn = popul_idx
                 if self._feedback:
                     first_popul_to_conn = 0
+
                 for popul_idx_to_connect in range(first_popul_to_conn,
                                                   len(self._neurons_per_layer)):
                     popul_to_connect = self._neurons_per_layer[popul_idx_to_connect]
@@ -905,16 +907,18 @@ def distance(i, j, row_n, col_n):
 
 
 if __name__ == '__main__':
-    N = 100
-    nodes_details = [N, int(N / 2), N - 1]
+    N = 4
+    nodes_details = [N, N ** 2, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
+    spacial_args = (1,1)
+    feedback = True
     configuration = {BrainNN.NODES_DETAILS: nodes_details,
                      BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                      BrainNN.VISUALIZATION_FUNC_STR: 'No ',
                      BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
                      BrainNN.SHOOT_THRESHOLD: 100,
-                     BrainNN.SPACIAL_ARGS: (10, 10),
-                     BrainNN.FEEDBACK: True}
+                     BrainNN.SPACIAL_ARGS: spacial_args,
+                     BrainNN.FEEDBACK: feedback}
     brainNNmodel = BrainNN(configuration)
     brainNNmodel.visualize()
     cv2.waitKey()

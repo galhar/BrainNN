@@ -1,7 +1,8 @@
 # Writer: Gal Harari
 # Date: 23/07/2020
-from src.binary_prediction import create_binary_input_generator, N, \
-    evaluate_binary_representation_nn, BinaryDataLoader
+from src.binary_encoding_task.binary_prediction import create_binary_input_generator, N, \
+    evaluate_binary_representation_nn, BinaryDataLoader, BinaryOneOneDataLoader, \
+    BinaryOneOneEvalHook
 from src.brainNN import BrainNN
 from src.utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
@@ -62,7 +63,7 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=12):
+def trainer_evaluation(epoches=8):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader(
         batched=True)))
@@ -76,9 +77,11 @@ def create_trainer(epoches=17):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
     inter_connections = [(False, True), (True, True), (True, True)]
+    feedback = False
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections}
+                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
+                          BrainNN.FEEDBACK: feedback}
 
     net = BrainNN(configuration_args)
     data_loader = BinaryDataLoader(shuffle=True)
@@ -87,7 +90,32 @@ def create_trainer(epoches=17):
     return net, trainer
 
 
+def one_one_evaluation(epoches=20):
+    # Create trainer:
+    nodes_details = [N, 2 ** N, 2 ** N - 1]
+    IINs_details = [(3, 3), (3, 3), (1, 1)]
+    inter_connections = [(False, True), (True, True), (True, True)]
+    feedback = False
+    configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
+                          BrainNN.IINS_PER_LAYER_NUM: IINs_details,
+                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
+                          BrainNN.FEEDBACK: feedback}
+
+    net = BrainNN(configuration_args)
+    data_loader = BinaryOneOneDataLoader(shuffle=True)
+    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
+    trainer = Trainer(net, data_loader, optimizer, verbose=False)
+
+    trainer.register_hook(lambda trainer: BinaryOneOneEvalHook(trainer, BinaryDataLoader(
+        batched=True)))
+    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
+    trainer.train()
+    tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
+    return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
+
+
 if __name__ == '__main__':
     # script_training(epoches=1)
     # trainer_train(epoches=3)
-    print(trainer_evaluation(epoches=6))
+    # print(trainer_evaluation(epoches=6))
+    print(one_one_evaluation())

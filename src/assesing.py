@@ -1,13 +1,15 @@
 # Writer: Gal Harari
 # Date: 17/11/2020
-from src.binary_prediction import create_binary_input_generator, N, \
+from src.binary_encoding_task.binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn
-from src.brainNN import BrainNN
+from src.binary_encoding_task.main_binary import trainer_train, script_training, \
+    trainer_evaluation, one_one_evaluation
+from src.Identity_task.main_identity import identity_evaluation
+from src.utils.general_utils import save_json, load_json
+
 import numpy as np
-import pickle
 import time
 from tqdm import tqdm
-from src.utils.general_utils import save_json, load_json
 
 # This import registers the 3D projection, but is otherwise unused.
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -16,7 +18,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from src.main_binary import trainer_train, script_training, trainer_evaluation
 
 DATA_PATH = '../records/'
 
@@ -191,9 +192,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = 'Pickle data 11_21_20 15_07'
-    load_one_layer_nn = "Accuracy Over Epoches records 11_24_20 02_04"
-    load_bigger_inner_layer = "Accuracy Over Epoches records 11_24_20 05_56"
-    check_func = trainer_evaluation
+    load_path = 'Accuracy Over Epoches records 12_15_20 21_18.json'
+    check_func = identity_evaluation
     setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=6, scatter=True)
+    average_over_nets(check_func, iterations=3)#, scatter=True , load=load_path)
