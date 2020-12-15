@@ -1,9 +1,9 @@
 # Writer: Gal Harari
 # Date: 14/12/2020
-from font_prediction import FontDataLoader
-from brainNN import BrainNN
-from hooks import ClassesEvalHook, SaveByEvalHook
-from utils.train_utils import DefaultOptimizer, Trainer
+from src.font_prediction import FontDataLoader
+from src.brainNN import BrainNN
+from src.hooks import ClassesEvalHook, SaveByEvalHook
+from src.utils.train_utils import DefaultOptimizer, Trainer
 
 import os
 import sys
