@@ -3,17 +3,20 @@
 import os
 import cv2 as cv
 import numpy as np
+import cv2
 
 from src.utils.train_utils import ClassesDataLoader
 
+IMG_SIZE = 20
+
 
 def flatten_to_image(flat_img):
-    return np.reshape(flat_img,)
+    return np.reshape(flat_img, )
 
 
 class FontDataLoader(ClassesDataLoader):
 
-    def __init__(self, data_dir, batched=False, shuffle=False, noise_std=0):
+    def __init__(self, data_dir, batched=False, shuffle=True, noise_std=0):
         """
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the
         model to be more robust, like dropout in ANNs. Noise can be generated during
@@ -40,6 +43,15 @@ class FontDataLoader(ClassesDataLoader):
         for file_name in os.listdir(data_dir):
             if "resized" in file_name:
                 label = file_name.split("resized")[0]
-                img = cv.imread(data_dir + file_name) / 255.
-                data_array.append((label, img.flatten()))
+                # Using 0 to read image in grayscale mode
+                img = cv.imread(data_dir + file_name, 0) / 255.
+                pad_image = np.ones((IMG_SIZE,IMG_SIZE))
+                w, h = img.shape
+                l_pad, top_pad = int((IMG_SIZE - w) / 2), int((IMG_SIZE - h) / 2)
+                r_pad, bottom_pad = l_pad + w, top_pad + h
+                pad_image[l_pad:r_pad,top_pad:bottom_pad] = img
+                # Turn black into the high values, and white to the low value
+                pad_image = 1 - pad_image
+
+                data_array.append((label, pad_image.flatten()))
         return data_array

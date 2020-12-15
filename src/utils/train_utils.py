@@ -1,6 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import numpy as np
+from tqdm import tqdm
 
 
 def np_softmax(x):
@@ -122,7 +123,6 @@ class ClassesDataLoader(DataLoaderBase):
                                      range(len(data_array))}
 
         self.samples = [self._noise(sample) for l, sample in data_array]
-        self._cls_lst = self.classes_neurons.copy()
         self._cur_label_idx = 0
 
 
@@ -241,11 +241,13 @@ class Trainer:
         self.net = net
         self._data_loader = data_loader
         self.optimizer = optimizer
-        self._net_wrapper = TrainNetWrapper(net, verbose=verbose,
+        self._net_wrapper = TrainNetWrapper(net,
                                             req_shots_num=self.optimizer.sample_reps,
                                             optimizer=optimizer)
         self._hooks = []
         self.storage = {}
+
+        self._verbose = verbose
 
         self.optimizer.update_net()
 
@@ -266,8 +268,19 @@ class Trainer:
 
         for ep in range(self.optimizer.epoches):
             for sample_batch, labels in self._data_loader:
-                for i in range(len(sample_batch)):
+
+                # To allow progress bar
+                samples_idxs = range(len(sample_batch))
+                if self._verbose:
+                    samples_idxs = tqdm(samples_idxs)
+
+                for i in samples_idxs:
                     sample, l = sample_batch[i], labels[i]
+
+                    if self._verbose:
+                        # Counting on that the loader is of type ClassesDataLoader
+                        print(self._data_loader.neuron_to_class_dict[l])
+
                     self._net_wrapper(sample, l)
 
                 self.net.zero_neurons()

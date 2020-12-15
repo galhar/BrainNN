@@ -869,7 +869,33 @@ class BrainNN:
                                  line_thick)
 
 
+def distance(i, j, row_n, col_n):
+    """
+    calculate the distance between the location i and the location j in the matrix,
+    considering it came from an image with row_n rows and col_n columns
+    :param i:
+    :param j:
+    :param row_n:
+    :param col_n:
+    :return:
+    """
+    chn_size = row_n*col_n
+    # Get z location
+    z_i, z_j = i // chn_size, j // chn_size
+    i, j = i % chn_size, j % chn_size
+
+    # Get y location
+    y_i, y_j = i // col_n, j // col_n
+    i, j = i % col_n, j % col_n
+
+    # Get x location
+    x_i, x_j = i, j
+
+    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i])
+
+
 if __name__ == '__main__':
+    print(distance(1, 12, 1, 1))
     N = 4
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
