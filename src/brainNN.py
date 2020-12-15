@@ -26,6 +26,8 @@ class BrainNN:
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
     FEEDBACK = 'Flag (True or False) to say if there will be connections from a ' \
                'population to lower populations'
+    SPACIAL_ARGS = 'should be only changed in case of images. in that case insert ' \
+                   '(<rows_num>,<columns_num>)'
     SYNAPSE_INCREASE_PROBABILITY = 'Probability for a synapse weight to INCREASE in ' \
                                    'case it provides the learning rule'
     SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
@@ -72,6 +74,7 @@ class BrainNN:
         IINS_STRENGTH_FACTOR: 2,
         SHOOT_THRESHOLD: 40,
         FEEDBACK: False,
+        SPACIAL_ARGS: (1, 1),
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
@@ -237,16 +240,16 @@ class BrainNN:
                     for layer_to_conn_idx, layer_to_conn in enumerate(popul_to_connect):
                         # Create connections to layer "layer_to_connect" from current
                         # layer
-                        self._create_connections_between_2_layers(layer_neurons_num,
-                                                                  layer_to_conn,
-                                                                  layer_list,
-                                                                  cur_layer_idx,
-                                                                  layer_to_conn_idx,
-                                                                  popul_idx,
-                                                                  popul_idx_to_connect,
-                                                                  mean, std,
-                                                                  popul_layers_inter_conns)
-                        normalize_vec += layer_list[-1][0].sum(axis=1)
+                        if self._create_connections_between_2_layers(layer_neurons_num,
+                                                                     layer_to_conn,
+                                                                     layer_list,
+                                                                     cur_layer_idx,
+                                                                     layer_to_conn_idx,
+                                                                     popul_idx,
+                                                                     popul_idx_to_connect,
+                                                                     mean, std,
+                                                                     popul_layers_inter_conns):
+                            normalize_vec += layer_list[-1][0].sum(axis=1)
                 # The IINs might be stronger than the excitatory
                 normalize_vec[self._IINs_start_per_popul[popul_idx]:] /= IINs_factor
 
@@ -267,7 +270,7 @@ class BrainNN:
         # populations
         if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
                 != popul_idx:
-            return
+            return False
 
         idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
         layer_list.append([np.random.normal(mean, std, (layer_neurons_num,
@@ -291,7 +294,7 @@ class BrainNN:
                 # neurons to connect to the others
                 layer_list[-1][0][:IINs_start_idx, :IINs_start_idx] = 0
                 # del layer_list[-1]
-                return
+                return True
 
             # layer_list[-1][0] is the matrix. layer_list[-1][1] are the idxs
             # Prevent self loops.
@@ -328,17 +331,24 @@ class BrainNN:
             # only mess with the excitatory neurons
             extory_num = self._IINs_start_per_popul[popul_idx]
 
+            # For case of images to insert spacial meaning in the first population,
+            # else it is always 1,1
+            rows, cols = 1, 1
+            if popul_idx == 0:
+                rows, cols = self._conf_args[BrainNN.SPACIAL_ARGS]
+
             size = layer_list[-1][0].shape
             mult_mat = np.ones(size)
             for i in range(size[0]):
                 for j in range(size[1]):
                     if i < extory_num and j < extory_num:
-                        mult_mat[i, j] *= dist_fac ** (1 - abs(i - j))
+                        mult_mat[i, j] *= dist_fac ** (1 - distance(i, j, rows, cols))
 
             layer_list[-1][0] *= mult_mat
         else:
             # connections between layers
             layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
+        return True
 
 
     def _validate_inter_connections_format(self, popul_idx, popul_to_connect,
@@ -879,7 +889,7 @@ def distance(i, j, row_n, col_n):
     :param col_n:
     :return:
     """
-    chn_size = row_n*col_n
+    chn_size = row_n * col_n
     # Get z location
     z_i, z_j = i // chn_size, j // chn_size
     i, j = i % chn_size, j % chn_size
@@ -895,15 +905,16 @@ def distance(i, j, row_n, col_n):
 
 
 if __name__ == '__main__':
-    print(distance(1, 12, 1, 1))
-    N = 4
-    nodes_details = [N, 2 ** N, 2 ** N - 1]
+    N = 100
+    nodes_details = [N, int(N / 2), N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
     configuration = {BrainNN.NODES_DETAILS: nodes_details,
                      BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                      BrainNN.VISUALIZATION_FUNC_STR: 'No ',
                      BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
-                     BrainNN.SHOOT_THRESHOLD: 100}
+                     BrainNN.SHOOT_THRESHOLD: 100,
+                     BrainNN.SPACIAL_ARGS: (10, 10),
+                     BrainNN.FEEDBACK: True}
     brainNNmodel = BrainNN(configuration)
     brainNNmodel.visualize()
     cv2.waitKey()
