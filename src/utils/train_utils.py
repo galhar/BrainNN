@@ -1,6 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import numpy as np
+from tqdm import tqdm
 
 
 def np_softmax(x):
@@ -99,6 +100,72 @@ class DataLoaderBase:
         return self
 
 
+class ClassesDataLoader(DataLoaderBase):
+
+    def __init__(self, data_array, batched=False, shuffle=False,
+                 noise_std=0):
+        """
+
+        :param data_array: [(<label>,<sample>),...]
+        :param batched:
+        :param shuffle:
+        :param noise_std:
+        """
+        self._batched = batched
+        self._shuffle = shuffle
+        self._n_std = noise_std
+
+        self._stopped_iter = True
+
+        self.classes = [l for l, sample in data_array]
+        self.classes_neurons = [i for i in range(len(data_array))]
+        self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
+                                     range(len(data_array))}
+
+        self.samples = [self._noise(sample) for l, sample in data_array]
+        self._cur_label_idx = 0
+
+
+    def _noise(self, s):
+        size = s.shape
+        return s + np.random.normal(0, self._n_std, size=size)
+
+
+    def __next__(self):
+        if not self._batched:
+            return self._sequence_next()
+        else:
+            return self._batched_next()
+
+
+    def _sequence_next(self):
+        # create a single batch and raise stop iteration. If last time didn't raised
+        # stopIteration than this one should do it
+        if not self._stopped_iter:
+            self._stopped_iter = True
+            raise StopIteration
+        # This "next" doesn't raise stopIteration
+        self._stopped_iter = False
+
+        if self._shuffle:
+            p = np.random.permutation(len(self.classes_neurons))
+            return [[self.samples[i] for i in p], [self.classes_neurons[i] for i in p]]
+
+        return [self.samples, self.classes_neurons]
+
+
+    def _batched_next(self):
+        l_idx = self._cur_label_idx
+        if l_idx == len(self.classes_neurons):
+            self._cur_label_idx = 0
+            raise StopIteration
+
+        samples_batch = [self.samples[l_idx]]
+        labels = [self.classes_neurons[l_idx]]
+        self._cur_label_idx += 1
+        return [samples_batch, labels]
+
+
 class OptimizerBase:
 
     def __init__(self, net, increase_func, decrease_func, increase_prob,
@@ -174,11 +241,13 @@ class Trainer:
         self.net = net
         self._data_loader = data_loader
         self.optimizer = optimizer
-        self._net_wrapper = TrainNetWrapper(net, verbose=verbose,
+        self._net_wrapper = TrainNetWrapper(net,
                                             req_shots_num=self.optimizer.sample_reps,
                                             optimizer=optimizer)
         self._hooks = []
         self.storage = {}
+
+        self._verbose = verbose
 
         self.optimizer.update_net()
 
@@ -199,8 +268,19 @@ class Trainer:
 
         for ep in range(self.optimizer.epoches):
             for sample_batch, labels in self._data_loader:
-                for i in range(len(sample_batch)):
+
+                # To allow progress bar
+                samples_idxs = range(len(sample_batch))
+                if self._verbose:
+                    samples_idxs = tqdm(samples_idxs)
+
+                for i in samples_idxs:
                     sample, l = sample_batch[i], labels[i]
+
+                    if self._verbose:
+                        # Counting on that the loader is of type ClassesDataLoader
+                        print(self._data_loader.neuron_to_class_dict[l])
+
                     self._net_wrapper(sample, l)
 
                 self.net.zero_neurons()
