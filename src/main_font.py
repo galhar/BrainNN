@@ -1,6 +1,6 @@
 # Writer: Gal Harari
 # Date: 14/12/2020
-from src.font_prediction import FontDataLoader
+from src.font_prediction import FontDataLoader, IMG_SIZE
 from src.brainNN import BrainNN
 from src.hooks import ClassesEvalHook, SaveByEvalHook
 from src.utils.train_utils import DefaultOptimizer, Trainer
@@ -23,10 +23,14 @@ def create_trainer(epoches=17):
 
     nodes_details = [img_len, 140, 100, output_shape]
     IINs_details = [(4, 4), (3, 3), (3, 3), (1, 1)]
-    inter_connections = [(False, True), (True, True), (True, True), (True, True)]
+    inter_connections = [(True, True), (True, True), (True, True), (True, True)]
+    img_dim = (IMG_SIZE, IMG_SIZE)
+    feedback = False
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections}
+                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
+                          BrainNN.SPACIAL_ARGS: img_dim,
+                          BrainNN.FEEDBACK:feedback}
 
     net = BrainNN(configuration_args)
     optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
@@ -34,7 +38,7 @@ def create_trainer(epoches=17):
     return net, trainer
 
 
-def fonts_trainer_evaluation(epoches=20):
+def fonts_trainer_evaluation(epoches=10):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
         TEST_DIR, batched=True)))
@@ -45,4 +49,4 @@ def fonts_trainer_evaluation(epoches=20):
 
 
 if __name__ == '__main__':
-    print(fonts_trainer_evaluation(epoches=6))
+    print(fonts_trainer_evaluation(epoches=1))

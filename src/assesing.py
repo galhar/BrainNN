@@ -16,8 +16,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from src.main_binary import trainer_train, script_training, trainer_evaluation, \
-    check_new_data_loader
+from src.main_binary import trainer_train, script_training, trainer_evaluation
 
 DATA_PATH = '../records/'
 
@@ -197,4 +196,4 @@ if __name__ == '__main__':
     load_bigger_inner_layer = "Accuracy Over Epoches records 11_24_20 05_56"
     check_func = trainer_evaluation
     setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=2, scatter=True)
+    average_over_nets(check_func, iterations=6, scatter=True)
