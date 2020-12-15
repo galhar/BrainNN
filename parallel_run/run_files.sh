@@ -2,7 +2,7 @@
 
 
 for i in $(eval echo {1..$1}) ;do
-  sbatch -c1 --mem=500m --time=55 single_run.sh $i
+  sbatch -c1 --mem=500m --time=100 single_run.sh $i
 done
 #wait
 
