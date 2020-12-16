@@ -11,9 +11,10 @@ import inspect
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
+pparentdir = os.path.dirname(parentdir)
 
-TRAIN_DIR = os.path.join(parentdir, 'data/Font images/Calibri Font images/')
-TEST_DIR = os.path.join(parentdir, 'data/Font images/Calibri Font images/')
+TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
+TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
 
 def create_trainer(epoches=17):
