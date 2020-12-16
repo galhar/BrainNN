@@ -27,11 +27,13 @@ def create_trainer(epoches=17):
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     img_dim = (IMG_SIZE, IMG_SIZE)
     feedback = False
+    iin_factor = 2
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
                           BrainNN.SPACIAL_ARGS: img_dim,
-                          BrainNN.FEEDBACK:feedback}
+                          BrainNN.FEEDBACK: feedback,
+                          BrainNN.IINS_STRENGTH_FACTOR: iin_factor}
 
     net = BrainNN(configuration_args)
     optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
