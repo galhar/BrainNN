@@ -63,7 +63,7 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=8):
+def trainer_evaluation(epoches=15):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader(
         batched=True)))
@@ -74,9 +74,9 @@ def trainer_evaluation(epoches=8):
 
 
 def create_trainer(epoches=17):
-    nodes_details = [N, 2 ** N, 2 ** N - 1]
-    IINs_details = [(3, 3), (3, 3), (1, 1)]
-    inter_connections = [(False, True), (True, True), (True, True)]
+    nodes_details = [N, 2 ** N - 1]
+    IINs_details = [(3, 3), (1, 1)]
+    inter_connections = [(False, True), (True, True)]
     feedback = False
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
@@ -117,5 +117,5 @@ def one_one_evaluation(epoches=20):
 if __name__ == '__main__':
     # script_training(epoches=1)
     # trainer_train(epoches=3)
-    # print(trainer_evaluation(epoches=6))
-    print(one_one_evaluation())
+    print(trainer_evaluation(epoches=6))
+    # print(one_one_evaluation())

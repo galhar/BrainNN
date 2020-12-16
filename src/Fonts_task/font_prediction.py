@@ -45,13 +45,14 @@ class FontDataLoader(ClassesDataLoader):
                 label = file_name.split("resized")[0]
                 # Using 0 to read image in grayscale mode
                 img = cv.imread(data_dir + file_name, 0) / 255.
-                pad_image = np.ones((IMG_SIZE,IMG_SIZE))
+                pad_image = np.ones((IMG_SIZE, IMG_SIZE))
                 w, h = img.shape
                 l_pad, top_pad = int((IMG_SIZE - w) / 2), int((IMG_SIZE - h) / 2)
                 r_pad, bottom_pad = l_pad + w, top_pad + h
-                pad_image[l_pad:r_pad,top_pad:bottom_pad] = img
-                # Turn black into the high values, and white to the low value
-                pad_image = 1 - pad_image
+                pad_image[l_pad:r_pad, top_pad:bottom_pad] = img
+                # Turn black into the high values, and white to the low value,
+                # and increase the signal
+                pad_image = 30 * (1 - pad_image)
 
                 data_array.append((label, pad_image.flatten()))
         return data_array

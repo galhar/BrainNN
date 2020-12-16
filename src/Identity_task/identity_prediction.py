@@ -7,7 +7,7 @@ import cv2
 
 from src.utils.train_utils import ClassesDataLoader
 
-N = 100
+N = 400
 
 
 def get_rep(i, n):
