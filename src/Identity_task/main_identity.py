@@ -21,9 +21,9 @@ def create_trainer(epoches=17):
     inp_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
-    nodes_details = [inp_len, N, output_shape]
-    IINs_details = [(4, 4), (3, 3), (1, 1)]
-    inter_connections = [(True, True), (True, True), (True, True)]
+    nodes_details = [inp_len, output_shape]
+    IINs_details = [(4, 4),  (1, 1)]
+    inter_connections = [(True, True), (True, True)]
     feedback = False
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
