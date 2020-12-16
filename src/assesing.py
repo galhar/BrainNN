@@ -192,7 +192,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = 'Accuracy Over Epoches records 12_15_20 21_18.json'
+    load_path = ' records 12_15_20 21_45.json'
     check_func = identity_evaluation
     setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=3)#, scatter=True , load=load_path)
+    average_over_nets(check_func, iterations=1)#, scatter=False , load=load_path)
