@@ -6,7 +6,7 @@ from src.binary_encoding_task.binary_prediction import create_binary_input_gener
 from src.brainNN import BrainNN
 from src.utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
 import numpy as np
-from src.hooks import ClassesEvalHook, SaveByEvalHook
+from src.hooks import ClassesEvalHook, SaveByEvalHook, OutputDistributionHook
 import cv2
 from deprecated import deprecated
 
@@ -73,15 +73,28 @@ def trainer_evaluation(epoches=15):
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
+def output_distribution_query(epoches=11):
+    net, trainer = create_trainer(epoches)
+    interest_label_neurons = [2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14]
+    trainer.register_hook(
+        lambda trainer: OutputDistributionHook(trainer, BinaryDataLoader(
+            batched=True), interest_label_neurons))
+    trainer.train()
+    cls_dist_str = OutputDistributionHook.CLS_DIST_STR
+    return [[str(l),trainer.storage[cls_dist_str][l]] for l in interest_label_neurons]
+
+
 def create_trainer(epoches=17):
-    nodes_details = [N, 2 ** N - 1]
-    IINs_details = [(3, 3), (1, 1)]
-    inter_connections = [(False, True), (True, True)]
+    nodes_details = [N, 2 ** N, 2 ** N - 1]
+    IINs_details = [(3, 3), (3, 3), (1, 1)]
+    inter_connections = [(False, True), (True, True), (True, True)]
     feedback = False
+    iins_factor = 10
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                          BrainNN.FEEDBACK: feedback}
+                          BrainNN.FEEDBACK: feedback,
+                          BrainNN.IINS_STRENGTH_FACTOR: iins_factor}
 
     net = BrainNN(configuration_args)
     data_loader = BinaryDataLoader(shuffle=True)
@@ -90,7 +103,7 @@ def create_trainer(epoches=17):
     return net, trainer
 
 
-def one_one_evaluation(epoches=20):
+def one_one_evaluation(epoches=10):
     # Create trainer:
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
@@ -102,7 +115,7 @@ def one_one_evaluation(epoches=20):
                           BrainNN.FEEDBACK: feedback}
 
     net = BrainNN(configuration_args)
-    data_loader = BinaryOneOneDataLoader(shuffle=True)
+    data_loader = BinaryDataLoader(shuffle=True)
     optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
     trainer = Trainer(net, data_loader, optimizer, verbose=False)
 
