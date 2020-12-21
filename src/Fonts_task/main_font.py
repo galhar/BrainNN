@@ -18,7 +18,7 @@ TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
 
 def create_trainer(epoches=17):
-    data_loader = FontDataLoader(TRAIN_DIR, batched=True)
+    data_loader = FontDataLoader(TRAIN_DIR, shuffle=True)
     img_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
