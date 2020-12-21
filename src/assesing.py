@@ -237,7 +237,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = 'output distribution  records 2 4 5 6 8 9 10 11 12 13 14 12_21_20 13_21.json'
+    load_path = '  records 2 4 5 6 8 9 10 11 12 13 14 12_21_20 13_34.json'
     check_func = output_distribution_query
-    setattr(check_func, 'title', 'output distribution')
+    setattr(check_func, 'title', 'output distribution Strong IINs (*10)')
     average_over_nets(check_func, iterations=25, scatter=False, load=load_path)

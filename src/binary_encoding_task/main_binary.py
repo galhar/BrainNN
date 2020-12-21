@@ -103,16 +103,18 @@ def create_trainer(epoches=17):
     return net, trainer
 
 
-def one_one_evaluation(epoches=10):
+def one_one_evaluation(epoches=16):
     # Create trainer:
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
     inter_connections = [(False, True), (True, True), (True, True)]
     feedback = False
+    iins_factor = 10
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                          BrainNN.FEEDBACK: feedback}
+                          BrainNN.FEEDBACK: feedback,
+                          BrainNN.IINS_STRENGTH_FACTOR: iins_factor}
 
     net = BrainNN(configuration_args)
     data_loader = BinaryDataLoader(shuffle=True)
