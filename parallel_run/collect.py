@@ -23,6 +23,6 @@ if __name__ == '__main__':
     print("Processing merged data...")
     average_over_nets(None, load=combined_data)
 
-    # for filename in os.listdir(SAVE_PATH):
-    #     print("Cleaning tmp...")
-    #     os.remove(SAVE_PATH + filename)
+    for filename in os.listdir(SAVE_PATH):
+        print("Cleaning tmp...")
+        os.remove(SAVE_PATH + filename)
