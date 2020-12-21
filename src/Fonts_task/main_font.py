@@ -27,7 +27,7 @@ def create_trainer(epoches=17):
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     img_dim = (IMG_SIZE, IMG_SIZE)
     feedback = False
-    iin_factor = 2
+    iin_factor = 10
     vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
