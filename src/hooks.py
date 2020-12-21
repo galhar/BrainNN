@@ -131,3 +131,52 @@ class ClassesEvalHook(HookBase):
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
 
         self._net.unfreeze()
+
+
+class OutputDistributionHook(HookBase):
+    CLS_DIST_STR = 'Classes output distribution over epochs'
+
+
+    def __init__(self, trainer, data_loader, neurons_to_check=None, req_shots_num=5,
+                 noise_std=0):
+        """
+
+        :param trainer:
+        :param data_loader: In order to zero between checks, put each sample in a
+        different batch. It zeros the neurons between batches.
+        :param req_shots_num:
+        :param noise_std:
+        """
+        super().__init__(trainer)
+        self._interest_labels = neurons_to_check if neurons_to_check else \
+            data_loader.classes_neurons
+
+        self._net = trainer.net
+        self._data_loader = data_loader
+        self._net_wrapper = EvalNetWrapper(self._net,
+                                           noise_std=noise_std,
+                                           req_shots_num=req_shots_num)
+        self._cls_lst = self._data_loader.classes_neurons
+
+        self._storage_dict = {}
+        for label in self._interest_labels:
+            self._storage_dict[label] = []
+        self._trainer.storage[OutputDistributionHook.CLS_DIST_STR] = self._storage_dict
+
+
+    def after_epoch(self):
+        self._net.freeze()
+
+        for sample_batch, labels in self._data_loader:
+            for i in range(len(sample_batch)):
+                sample, l = sample_batch[i], labels[i]
+
+                if l not in self._interest_labels:
+                    continue
+
+                output = self._net_wrapper(sample)
+                self._storage_dict[l].append(output)
+
+                self._net.zero_neurons()
+
+        self._net.unfreeze()

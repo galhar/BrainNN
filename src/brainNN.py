@@ -907,13 +907,15 @@ def distance(i, j, row_n, col_n):
 
 
 if __name__ == '__main__':
-    N = 4
-    nodes_details = [N, N ** 2, 2 ** N - 1]
-    IINs_details = [(3, 3), (3, 3), (1, 1)]
-    spacial_args = (1,1)
+    N = 100
+    nodes_details = [N, int(N/4), int(N / 4), int(N / 5)]
+    IINs_details = [(3, 3), (3, 3), (3, 3), (1, 1)]
+    inter_connections = [(True, True), (True, True), (True, True), (True, True)]
+    spacial_args = (20, 20)
     feedback = True
     configuration = {BrainNN.NODES_DETAILS: nodes_details,
                      BrainNN.IINS_PER_LAYER_NUM: IINs_details,
+                     BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
                      BrainNN.VISUALIZATION_FUNC_STR: 'No ',
                      BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
                      BrainNN.SHOOT_THRESHOLD: 100,
@@ -923,7 +925,8 @@ if __name__ == '__main__':
     brainNNmodel.visualize()
     cv2.waitKey()
     brainNNmodel.save_state()
+    cv2.destroyAllWindows()
 
-    loaded = BrainNN.load_model()
+    loaded = BrainNN.load_model(configuration)
     loaded.visualize()
     cv2.waitKey()

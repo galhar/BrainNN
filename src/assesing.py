@@ -3,7 +3,7 @@
 from src.binary_encoding_task.binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn
 from src.binary_encoding_task.main_binary import trainer_train, script_training, \
-    trainer_evaluation, one_one_evaluation
+    trainer_evaluation, one_one_evaluation, output_distribution_query
 from src.Identity_task.main_identity import identity_evaluation
 from src.utils.general_utils import save_json, load_json
 
@@ -35,6 +35,28 @@ def dim(a):
     return [len(a)] + dim(a[0])
 
 
+def get_strings(arr, large_str=""):
+    """
+
+    :param arr: largest available arr := [[[str_i,data_i_iter_j],...(i++)],...(j++)]
+    :param large_str:
+    :return:
+    """
+    if type(arr[0]) == str:
+        return arr[0]
+    if type(arr[0]) == list:
+        if type(arr[0][0]) == list:
+            for i in range(len(arr[0])):
+                # here it means arr[0] := [[str_i,data_i_iter_j],...(i++)]
+                large_str += " " + get_strings(arr[0][i], large_str)
+            return large_str
+
+        for i in range(len(arr)):
+            large_str += " " + get_strings(arr[i], large_str)
+        return large_str
+    return ""
+
+
 def check_architecture():
     return [trainer_train(), script_training()]
 
@@ -57,6 +79,10 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
     titles = {}
     if hasattr(net_data_func_with_attr, 'title'):
         titles['title'] = net_data_func_with_attr.title
+    else:
+        titles['title'] = ''
+    titles['title'] += ' '
+
     if hasattr(net_data_func_with_attr, 'x_label'):
         titles['x_label'] = net_data_func_with_attr.x_label
     if hasattr(net_data_func_with_attr, 'y_label'):
@@ -72,6 +98,7 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
 
         current_time = timestamp()
         save_json(iterations_vec, DATA_PATH + f"{titles.get('title', '')} records"
+                                              f"{get_strings(iterations_vec)}"
                                               f" {current_time}")
     elif isinstance(load, str):
         # Here it means we got the data path to load from
@@ -81,13 +108,31 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
         iterations_vec = load
         current_time = timestamp()
         save_json(iterations_vec, DATA_PATH + f"{titles.get('title', '')} records"
+                                              f"{get_strings(iterations_vec)}"
                                               f" {current_time}")
+
+    # If it's data for only 1 plot, with str documentation [[<title>, <iter_1_data>],
+    # [<title>, <iter_2_data>],...]
+    if type(iterations_vec[0][0]) == str:
+        titles_copy = titles.copy()
+        titles_copy['title'] += iterations_vec[0][0]
+        describe(titles_copy, [data for s, data in iterations_vec], scatter)
 
     if not is_3D and (type(iterations_vec[0][0]) == list or type(iterations_vec[0][0])
                       == np.ndarray):
-        # Here it means the function returns some vecs of records inone list.
+        # Here it means the function returns some vecs of records in one list. Thus
+        # iteration_vec looks like: [<some_vecs_of_records_iter_1>,
+        # <some_vecs_of_records_iter_2>,...]
         for i in range(len(iterations_vec[0])):
-            describe(titles, [net_data[i] for net_data in iterations_vec], scatter)
+            # If it got title in it take it and continue
+            if type(iterations_vec[0][i][0]) == str:
+                # <some_vecs_of_records_iter_i> :=[[<title1>, <iter_i_data1>],[<title2>,
+                # <iter_i_data2>],...]
+                titles_copy = titles.copy()
+                titles_copy['title'] += iterations_vec[0][i][0]
+                describe(titles_copy, [net_data[i][1] for net_data in iterations_vec], scatter)
+            else:
+                describe(titles, [net_data[i] for net_data in iterations_vec], scatter)
     else:
         describe(titles, iterations_vec, scatter)
 
@@ -192,7 +237,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = 'Accuracy Over Epoches records 12_16_20 19_48.json'
-    check_func = trainer_evaluation
-    setattr(check_func, 'title', 'Accuracy Over Epoches')
-    average_over_nets(check_func, iterations=40, scatter=False , load=load_path)
+    load_path = 'output distribution  records 2 4 5 6 8 9 10 11 12 13 14 12_21_20 13_21.json'
+    check_func = output_distribution_query
+    setattr(check_func, 'title', 'output distribution')
+    average_over_nets(check_func, iterations=25, scatter=False, load=load_path)

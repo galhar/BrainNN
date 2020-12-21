@@ -1,6 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import numpy as np
+import random
 from tqdm import tqdm
 
 
@@ -123,7 +124,10 @@ class ClassesDataLoader(DataLoaderBase):
                                      range(len(data_array))}
 
         self.samples = [self._noise(sample) for l, sample in data_array]
-        self._cur_label_idx = 0
+
+        # Batched options:
+        self._pool_counter = 0
+        self._idxs_pool = self.classes_neurons.copy()
 
 
     def _noise(self, s):
@@ -155,14 +159,17 @@ class ClassesDataLoader(DataLoaderBase):
 
 
     def _batched_next(self):
-        l_idx = self._cur_label_idx
-        if l_idx == len(self.classes_neurons):
-            self._cur_label_idx = 0
+        if self._pool_counter == len(self.classes_neurons):
+            self._pool_counter = 0
+            self._idxs_pool = self.classes_neurons.copy()
             raise StopIteration
 
-        samples_batch = [self.samples[l_idx]]
-        labels = [self.classes_neurons[l_idx]]
-        self._cur_label_idx += 1
+        idx = random.choice(self._idxs_pool)
+        self._idxs_pool.remove(idx)
+        self._pool_counter += 1
+
+        samples_batch = [self.samples[idx]]
+        labels = [self.classes_neurons[idx]]
         return [samples_batch, labels]
 
 
@@ -267,11 +274,12 @@ class Trainer:
         self._build_hooks()
 
         for ep in range(self.optimizer.epoches):
+
             for sample_batch, labels in self._data_loader:
 
                 # To allow progress bar
                 samples_idxs = range(len(sample_batch))
-                if self._verbose:
+                if self._verbose and not self._data_loader._batched:
                     samples_idxs = tqdm(samples_idxs)
 
                 for i in samples_idxs:
