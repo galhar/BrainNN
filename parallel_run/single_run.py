@@ -21,5 +21,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("save_idx", help="saves data with the given idx in the name")
     args = parser.parse_args()
-    single_run_data = one_one_evaluation()
+    single_run_data = fonts_trainer_evaluation()
     save_json(single_run_data, SAVE_PATH + SAVE_NAME + args.save_idx)
