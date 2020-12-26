@@ -43,11 +43,10 @@ def create_trainer(epoches=17):
     return net, trainer
 
 
-def fonts_trainer_evaluation(epoches=10):
+def fonts_trainer_evaluation(epoches=6):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
         TEST_DIR, batched=True)))
-    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
