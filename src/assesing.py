@@ -48,11 +48,13 @@ def get_strings(arr, large_str=""):
         if type(arr[0][0]) == list:
             for i in range(len(arr[0])):
                 # here it means arr[0] := [[str_i,data_i_iter_j],...(i++)]
-                large_str += " " + get_strings(arr[0][i], large_str)
+                addon = get_strings(arr[0][i], large_str)
+                large_str += (" " + addon) if addon else ""
             return large_str
 
         for i in range(len(arr)):
-            large_str += " " + get_strings(arr[i], large_str)
+            addon = get_strings(arr[i], large_str)
+            large_str += (" " + addon) if addon else ""
         return large_str
     return ""
 
@@ -237,7 +239,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = '  records                   12_21_20 13_54.json'
+    load_path = '  records             12_21_20 15_24.json'
     check_func = output_distribution_query
     setattr(check_func, 'title', 'classes acc OneOne eval, Strong IINs (*10)')
     average_over_nets(check_func, iterations=25, scatter=False, load=load_path)
