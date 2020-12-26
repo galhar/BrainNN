@@ -23,11 +23,11 @@ def create_trainer(epoches=17):
     output_shape = len(data_loader.classes_neurons)
 
     nodes_details = [img_len, 140, 100, output_shape]
-    IINs_details = [(4, 4), (3, 3), (3, 3), (1, 1)]
+    IINs_details = [(80, 80), (80, 80), (80, 80), (80, 80)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     img_dim = (IMG_SIZE, IMG_SIZE)
     feedback = False
-    iin_factor = 10
+    iin_factor = 2
     vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
