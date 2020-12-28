@@ -24,7 +24,7 @@ def create_trainer(epoches=17):
 
     nodes_details = [img_len, 140, 100, output_shape]
     IINs_details = [(4, 4), (4, 4), (4, 4), (4, 4)]
-    inter_connections = [(True, True), (True, True), (True, True), (True, True)]
+    inter_connections = [(True, True), (True, True), (False, False), (False, False)]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     feedback = False
@@ -57,4 +57,4 @@ def fonts_trainer_evaluation(epoches=6):
 
 
 if __name__ == '__main__':
-    print(fonts_trainer_evaluation(epoches=1))
+    print(fonts_trainer_evaluation(epoches=4))
