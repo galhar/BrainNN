@@ -23,7 +23,7 @@ def create_trainer(epoches=17):
     output_shape = len(data_loader.classes_neurons)
 
     nodes_details = [img_len, 140, 100, output_shape]
-    IINs_details = [(8, 8), (8, 8), (8, 8), (8, 8)]
+    IINs_details = [(4, 4), (4, 4), (4, 4), (4, 4)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
