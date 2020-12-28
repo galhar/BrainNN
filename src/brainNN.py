@@ -21,13 +21,16 @@ class BrainNN:
     SYNAPSE_DISTANCE_FACTOR = 'The farther the population is, the connections get ' \
                               'weaker exponentially by this factor. It also affects the' \
                               ' inner connections in the same way, and make the nodes ' \
-                              'connections stronger by this factor'
+                              'connections stronger by this factor. in (1,inf]'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
     FEEDBACK = 'Flag (True or False) to say if there will be connections from a ' \
                'population to lower populations'
     SPACIAL_ARGS = 'should be only changed in case of images. in that case insert ' \
                    '(<rows_num>,<columns_num>)'
+    SYNAPSE_SPACIAL_DISTANCE_FACTOR = 'Determines the spacial strength insize inner ' \
+                                      'layer connections. The bigger it is the weaker ' \
+                                      'connections from far neurons will be. in (1,inf].'
     SYNAPSE_INCREASE_PROBABILITY = 'Probability for a synapse weight to INCREASE in ' \
                                    'case it provides the learning rule'
     SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
@@ -75,6 +78,7 @@ class BrainNN:
         SHOOT_THRESHOLD: 40,
         FEEDBACK: False,
         SPACIAL_ARGS: (1, 1),
+        SYNAPSE_SPACIAL_DISTANCE_FACTOR: 1.01,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
@@ -324,11 +328,14 @@ class BrainNN:
         # Weaken links between far populations, and strength inner
         # population connections
         dist_fac = self._conf_args[BrainNN.SYNAPSE_DISTANCE_FACTOR]
+        spacial_dist_fac = self._conf_args[BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR]
 
         # for the same layer treat differently:
         if popul_idx_to_connect == popul_idx:
             # connections in the same layer get weaken as the neurons are far from each
             # other, and node connections get stronger
+            # It's the same LAYER and not POPULATION since all this loop does for
+            # different layers in the same population is strengthen the nodes connecitons
 
             # only mess with the excitatory neurons
             extory_num = self._IINs_start_per_popul[popul_idx]
@@ -344,7 +351,8 @@ class BrainNN:
             for i in range(size[0]):
                 for j in range(size[1]):
                     if i < extory_num and j < extory_num:
-                        mult_mat[i, j] *= dist_fac ** (1 - distance(i, j, rows, cols))
+                        mult_mat[i, j] *= spacial_dist_fac ** (
+                                    1 - distance(i, j, rows, cols))
 
             layer_list[-1][0] *= mult_mat
         else:
@@ -908,7 +916,7 @@ def distance(i, j, row_n, col_n):
 
 if __name__ == '__main__':
     N = 100
-    nodes_details = [N, int(N/4), int(N / 4), int(N / 5)]
+    nodes_details = [N, int(N / 4), int(N / 4), int(N / 5)]
     IINs_details = [(3, 3), (3, 3), (3, 3), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     spacial_args = (20, 20)

@@ -1,13 +1,15 @@
 # Writer: Gal Harari
 # Date: 04/06/2020
 import numpy as np
+from tqdm import tqdm
 import timeit
 import cv2
 import imutils
 import cProfile
 import pstats
-from main_binary import trainer_train
-
+import matplotlib.pyplot as plt
+from src.brainNN import distance
+from src.binary_encoding_task.main_binary import trainer_train
 
 
 def test_sum_np_vs_python():
@@ -239,7 +241,6 @@ def vid_merge_example_with_test():
     frame = np.zeros((400, 700, 3))
     h, w, _ = frame.shape
 
-
     # Define the codec and create VideoWriter object.The output is stored in
     # 'outpy.avi' file.
     out = cv2.VideoWriter('test_record_cv2.avi',
@@ -259,13 +260,11 @@ def vid_merge_example_with_test():
         cv2.imshow('frame', frame)
         cv2.waitKey(3)
 
-
-            # When everything done, release the video capture and video write objects
+        # When everything done, release the video capture and video write objects
     out.release()
 
     # Closes all the frames
     cv2.destroyAllWindows()
-
 
 
 def vid_example():
@@ -313,6 +312,7 @@ def vid_example():
     # Closes all the frames
     cv2.destroyAllWindows()
 
+
 def search_bottelneck():
     profile = cProfile.Profile()
     profile.runcall(trainer_train)
@@ -320,5 +320,43 @@ def search_bottelneck():
     ps.sort_stats('time')
     ps.print_stats()
 
+
+def check_distance(neuron_i, dist_fac=3, size=(3, 3), into_neuron=False):
+    img = np.zeros(size)
+    rows, cols = size
+    img_flat = img.flatten()
+    n = len(img_flat)
+    syn_mat = np.ones((n, n))
+    for i in tqdm(range(n)):
+        for j in range(n):
+            syn_mat[i, j] *= dist_fac ** (1 - distance(i, j, rows, cols))
+
+    if neuron_i:
+        if into_neuron:
+            neurons_syn_vec = syn_mat[:, neuron_i]
+
+        else:
+            neurons_syn_vec = syn_mat[neuron_i, :]
+
+        neuron_syns = neurons_syn_vec.reshape(size)
+
+        plt.imshow(neuron_syns)
+        plt.colorbar()
+        plt.title(f"dist_fac = {dist_fac}")
+        plt.show()
+    else:
+        for i in range(n):
+            if into_neuron:
+                neurons_syn_vec = syn_mat[:, i]
+
+            else:
+                neurons_syn_vec = syn_mat[i, :]
+
+            neuron_syns = neurons_syn_vec.reshape(size)
+
+            cv2.imshow('hi',neuron_syns)
+            cv2.waitKey(10)
+
+
 if __name__ == '__main__':
-    search_bottelneck()
+    check_distance(5,dist_fac=2, size=(20, 10))

@@ -23,9 +23,10 @@ def create_trainer(epoches=17):
     output_shape = len(data_loader.classes_neurons)
 
     nodes_details = [img_len, 140, 100, output_shape]
-    IINs_details = [(80, 80), (80, 80), (80, 80), (80, 80)]
+    IINs_details = [(8, 8), (8, 8), (8, 8), (8, 8)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     img_dim = (IMG_SIZE, IMG_SIZE)
+    spacial_dist_fac = 1.01
     feedback = False
     iin_factor = 2
     vis_str = 'None'
@@ -33,6 +34,7 @@ def create_trainer(epoches=17):
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
                           BrainNN.SPACIAL_ARGS: img_dim,
+                          BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
                           BrainNN.FEEDBACK: feedback,
                           BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
@@ -44,9 +46,11 @@ def create_trainer(epoches=17):
 
 
 def fonts_trainer_evaluation(epoches=6):
+    print("[*] Creating the trainer")
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
         TEST_DIR, batched=True)))
+    print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]

@@ -239,7 +239,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = '  records             12_21_20 15_24.json'
+    load_path = '  records 12_27_20 00_30.json'
     check_func = output_distribution_query
-    setattr(check_func, 'title', 'classes acc OneOne eval, Strong IINs (*10)')
-    average_over_nets(check_func, iterations=25, scatter=False, load=load_path)
+    setattr(check_func, 'title', 'Fonts (80, 80)x4')
+    average_over_nets(check_func, iterations=25, scatter=True, load=load_path)
