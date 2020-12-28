@@ -15,7 +15,7 @@ from single_run import SAVE_PATH
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("del_tmp", help="If true delete tmp folder", default=1)
+    parser.add_argument("del_tmp", help="If true delete tmp folder", type=int, default=1)
     args = parser.parse_args()
 
     # iterate over all the saved data and combine it
