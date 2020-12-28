@@ -3,6 +3,7 @@
 import os
 import sys
 import inspect
+import argparse
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -13,6 +14,10 @@ from src.utils.general_utils import load_json
 from single_run import SAVE_PATH
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("del_tmp", help="If true delete tmp folder", type=int, default=1)
+    args = parser.parse_args()
+
     # iterate over all the saved data and combine it
     combined_data = []
     print("Collecting...")
@@ -22,7 +27,7 @@ if __name__ == '__main__':
 
     print("Processing merged data...")
     average_over_nets(None, load=combined_data)
-
-    for filename in os.listdir(SAVE_PATH):
-        print("Cleaning tmp...")
-        os.remove(SAVE_PATH + filename)
+    if args.del_tmp:
+        for filename in os.listdir(SAVE_PATH):
+            print("Cleaning tmp...")
+            os.remove(SAVE_PATH + filename)

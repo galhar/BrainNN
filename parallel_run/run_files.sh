@@ -1,7 +1,7 @@
 #!/bin/sh
 
 
-for i in $(eval echo {1..$1}) ;do
+for i in $(eval echo {$1..$2}) ;do
   sbatch -c1 --mem=500m --time=180 single_run.sh $i
 done
 #wait
