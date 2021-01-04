@@ -60,6 +60,9 @@ class BrainNN:
     # The parameters requires to save a net in the configuration arguments
     _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM]
 
+    # Layers types:
+    Filters = ''
+
     default_configuration = {
         # Neuron parameters
         # [0][0] layer is the input layer. [-1][0] layer is the output layer
@@ -68,7 +71,7 @@ class BrainNN:
         IINS_PER_LAYER_NUM: [(2, 1), (1, 3), (1, 1)],
         # In order for each population setup regarding the inter-connections to count,
         # it has to be the same number of layers in it.
-        INTER_CONNECTIONS_PER_LAYER: [(False, True), (True, False), (True, True)],
+        INTER_CONNECTIONS_PER_LAYER: [(False, True), (True, False), (False, False)],
         # This might be connected to " WEIGHTS_SUM_INTO_NEURON "
         SYNAPSES_INITIALIZE_MEAN: 5,
         SYNAPSES_INITIALIZE_STD: 0.15,
@@ -106,6 +109,7 @@ class BrainNN:
         self._syn_inc_prob = self._conf_args[BrainNN.SYNAPSE_INCREASE_PROBABILITY]
         self._syn_dec_func = self._conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
         self._syn_dec_prob = self._conf_args[BrainNN.SYNAPSE_DECREASE_PROBABILITY]
+        self._validate_learning_functions()
 
         # Visualize section
         # Create visualization frame
@@ -156,7 +160,7 @@ class BrainNN:
         # Iterate only on synapses from the first layer, assuming it represents well
         # all the others
         for mat, idx in self._synapses_matrices[0][0]:
-            mat_max = np.max(mat)
+            mat_max = np.max(np.abs(mat))
             max_value = mat_max if mat_max > max_value else max_value
 
         # That's not accurate! It's not that a weights can only increase by factor of 2,
@@ -255,7 +259,7 @@ class BrainNN:
                                                                      popul_idx_to_connect,
                                                                      mean, std,
                                                                      popul_layers_inter_conns):
-                            normalize_vec += layer_list[-1][0].sum(axis=1)
+                            normalize_vec += np.abs(layer_list[-1][0]).sum(axis=1)
                 # The IINs might be stronger than the excitatory
                 normalize_vec[self._IINs_start_per_popul[popul_idx]:] /= IINs_factor
 
@@ -285,6 +289,9 @@ class BrainNN:
 
         IINs_start_idx = self._IINs_start_per_popul[popul_idx]
 
+        # Allow inhibition
+        layer_list[-1][0][IINs_start_idx:] *= -1
+
         # Prevent self loops
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
                 == popul_idx:
@@ -308,7 +315,7 @@ class BrainNN:
         else:
             # Here it means those are 2 different layers
 
-            # In the ame population create only between nodes
+            # In the same population create only between nodes
             if popul_idx_to_connect == popul_idx:
                 inner_non_IINS_mat = layer_list[-1][0][:IINs_start_idx, :IINs_start_idx]
                 idxs_to_delete_in_non_IIN_part = ~np.eye(inner_non_IINS_mat.shape[0],
@@ -352,7 +359,7 @@ class BrainNN:
                 for j in range(size[1]):
                     if i < extory_num and j < extory_num:
                         mult_mat[i, j] *= spacial_dist_fac ** (
-                                    1 - distance(i, j, rows, cols))
+                                1 - distance(i, j, rows, cols))
 
             layer_list[-1][0] *= mult_mat
         else:
@@ -375,6 +382,32 @@ class BrainNN:
             popul_layers_inter_conns = popul_layers_inter_conns[
                 popul_idx]
         return popul_layers_inter_conns
+
+
+    def _validate_learning_functions(self):
+        """
+        Make sure the decrease function can't inverse a synapse sign, the increase
+        functions is positive, and the decrease function preserve 0's
+        :return:
+        """
+        check_vec = np.linspace(0.0,
+                                2 * self._conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN],
+                                num=100)
+
+        # Assert the increase functions always increase
+        positive = self._syn_inc_func(check_vec)
+        assert np.all(positive >= 0), "Increase function is able to not increase"
+
+        # Assert the decrease function is limited and won't inverse a synapse sign
+        limited = self._syn_dec_func(check_vec * -1)
+        assert np.all(
+            limited + check_vec >= 0), "Decrease function is able to invert a synapse " \
+                                       "role"
+
+        # Assert the decrease function will turn 0 into 0 (it is the one that is
+        # actiavted on 0)
+        zero = self._syn_dec_func(np.array([0]))
+        assert zero[0] == 0, "Decrease function doesn't turn 0 to 0"
 
 
     def _init_sensory_input(self):
@@ -620,10 +653,6 @@ class BrainNN:
                 self._change_in_layers[cur_popul_idx][
                     cur_layer_idx] -= cur_shots * cur_layer
 
-                # IINs Deduce voltage
-                INNs_idx = self._IINs_start_per_popul[cur_popul_idx]
-                cur_shots[INNs_idx:] *= -1
-
                 matrices_from_cur_layer = self._synapses_matrices[cur_popul_idx][
                     cur_layer_idx]
 
@@ -680,6 +709,7 @@ class BrainNN:
                         assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
                                                       dst_layer_cur_shots.shape[0])
 
+
                         self._synapses_matrices[cur_popul_idx][cur_layer_idx][idx][0] = \
                             self._update_synapses_matrix(shots_matrix, matrix)
 
@@ -708,15 +738,19 @@ class BrainNN:
                 np.random.uniform(
                     size=(np.count_nonzero(neg_ones_idxs))) < self._syn_dec_prob)
 
-        weighted_synapses_matrix = np.multiply(shots_mat, cur_synapses_mat)
-        updated_mat = self._create_update_mat(weighted_synapses_matrix) + cur_synapses_mat
+        # abs so We'll decrease only according to the learning rule, which is shots_mat
+        weighted_synapses_matrix = np.multiply(shots_mat, np.abs(cur_synapses_mat))
+        # Now decreasing from negative is adding positive
+        addon_mat = self._create_update_mat(weighted_synapses_matrix) * np.sign(
+            cur_synapses_mat)
+        updated_mat = addon_mat + cur_synapses_mat
 
-        # Make sure no weight is negative
-        np.maximum(updated_mat, 0, updated_mat)
+        # NOTICE! We assume here that the synapses change functions can't change the
+        # weights sign, otherwise we would have zero what exceeded from the original value
 
         # Normalize the input synapses to each neuron
-        columns_sum_cur_mat, column_sum_updated_mat = cur_synapses_mat.sum(
-            axis=0), updated_mat.sum(axis=0)
+        columns_sum_cur_mat, column_sum_updated_mat = np.abs(cur_synapses_mat).sum(
+            axis=0), np.abs(updated_mat).sum(axis=0)
         # If the column sum is 0 then we will divide by 1 and still remain with 0's
         return updated_mat / np.where((columns_sum_cur_mat != 0) & (column_sum_updated_mat
                                                                     != 0),
@@ -881,11 +915,18 @@ class BrainNN:
                     if shot_flag:
                         cv2.line(frame, location, to_location,
                                  (1, 0, 0), line_thick)
+                    elif connections_strength < 0:
+                        cv2.line(frame, location, to_location,
+                                 (0,
+                                  0,
+                                  np.abs(connections_strength) /
+                                  self._connections_max_res),
+                                 line_thick)
                     else:
                         cv2.line(frame, location, to_location,
-                                 (
-                                     0, connections_strength / self._connections_max_res,
-                                     0),
+                                 (0,
+                                  connections_strength / self._connections_max_res,
+                                  0),
                                  line_thick)
 
 
