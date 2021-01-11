@@ -61,7 +61,7 @@ class FontDataLoader(ClassesDataLoader):
                 pad_image[l_pad:r_pad, top_pad:bottom_pad] = img
                 # Turn black into the high values, and white to the low value,
                 # and increase the signal
-                pad_image = 1*(1 - pad_image)
+                pad_image = 10*(1 - pad_image)
 
                 data_array.append((label, pad_image.flatten()))
         return data_array

@@ -116,6 +116,7 @@ class BrainNN:
         # Create visualization frame
         self._visualize_dict = {
             'default': self._default_visualize,
+            'light': self._light_visualize,
             'None': (lambda: None)
         }
         vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
@@ -123,6 +124,7 @@ class BrainNN:
         h, w, _ = self._visualization_frame.shape
         # Choose visualization function
         self.set_visualization(self._conf_args[BrainNN.VISUALIZATION_FUNC_STR])
+        self._vis_counter = 0
 
         # Create visualization window
         self._vis_window_name = VISUALIZATION_WINDOW_NAME
@@ -297,9 +299,9 @@ class BrainNN:
             # Here it means the layers are the same layer
 
             # Check if it is defined to have inter-connections
-            # Default is to have inter-connections, so if it's not
-            # defined well it will have inter-connections
-            if popul_layers_inter_conns and not popul_layers_inter_conns[cur_layer_idx]:
+            # Default is to NOT have inter-connections, so if it's not
+            # defined well it will not have inter-connections
+            if popul_layers_inter_conns is None or not popul_layers_inter_conns[cur_layer_idx]:
                 # Here it is set to not have inter-connections. The IINs are the only
                 # neurons to connect to the others
                 layer_list[-1][0][:IINs_start_idx, :IINs_start_idx] = 0
@@ -322,7 +324,6 @@ class BrainNN:
 
             # Prevent IINs of one layer to shoot to another
             layer_list[-1][0][IINs_start_idx:, :] = 0
-
 
         # Weaken links between far populations, and strength inner
         # population connections
@@ -426,8 +427,7 @@ class BrainNN:
                   "as the layers in the model are!")
         else:
             # It means everything is fine
-            popul_layers_inter_conns = popul_layers_inter_conns[
-                popul_idx]
+            popul_layers_inter_conns = popul_layers_inter_conns[popul_idx]
         return popul_layers_inter_conns
 
 
@@ -837,7 +837,7 @@ class BrainNN:
                                                   self._default_visualize)
 
 
-    def _default_visualize(self, debug=False):
+    def _default_visualize(self):
         """
         visualize the model according to it's current state and the visualization
         parameters chosen in the beginning.
@@ -859,9 +859,20 @@ class BrainNN:
         # Decrease the neuron size to keep the avoid cutting of the neurons
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
+        self._draw_net(frame, h, line_thick, neuron_size, w)
+
+        if show_during_the_run:
+            cv2.imshow(self._vis_window_name, frame)
+            cv2.waitKey(1)
+
+        if record:
+            save_frame = (frame * 255).astype(np.uint8)
+            out.write(save_frame)
+
+
+    def _draw_net(self, frame, h, line_thick, neuron_size, w, view_shots=True):
         # Each popul gets an equal part of the frame
         popul_gap = w // len(self._layers)
-
         for popul_idx, population_neurons in enumerate(self._layers):
             layers_num = len(population_neurons)
             layer_gap_y = h // layers_num
@@ -876,6 +887,8 @@ class BrainNN:
                                                    neuron_size,
                                                    neurons_gap, popul_gap, popul_idx)
                     shot_flag = self._current_shots[popul_idx][cur_layer_idx][neuron_idx]
+                    if not view_shots:
+                        shot_flag = False
 
                     # First draw connections to all other neurons
                     self._draw_connections_from_layer(cur_layer_idx, frame, h,
@@ -889,26 +902,15 @@ class BrainNN:
                                       neuron_size,
                                       popul_idx)
 
-                    # In case of debugging, see each step
-                    if debug:
-                        cv2.imshow(self._vis_window_name, frame)
-                        cv2.waitKey(0)
-
-        if show_during_the_run:
-            cv2.imshow(self._vis_window_name, frame)
-            cv2.waitKey(1)
-
-        if record:
-            save_frame = (frame * 255).astype(np.uint8)
-            out.write(save_frame)
-
 
     def _draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,
-                     popul_idx):
-        color = (neuron_draw_val, neuron_draw_val, neuron_draw_val)
-        cv2.circle(frame, location, neuron_size,
-                   color,
-                   thickness=-1)
+                     popul_idx, shot_flag=False):
+        if shot_flag:
+            color = (1, 0, 0)
+        else:
+            color = (neuron_draw_val, neuron_draw_val, neuron_draw_val)
+        cv2.circle(frame, location, neuron_size, color, thickness=-1)
+
         # Show the IINs by drawing a circle around them
         if neuron_idx >= self._IINs_start_per_popul[popul_idx]:
             cv2.circle(frame, location, neuron_size, (0, 0, 1), thickness=1)
@@ -976,6 +978,66 @@ class BrainNN:
                                  line_thick)
 
 
+    def _light_visualize(self):
+        """
+        visualize the model, updates every shot and every few steps
+        :return:
+        """
+        frame = self._visualization_frame
+        h, w, _ = frame.shape
+        counter = self._vis_counter
+        self._vis_counter = (self._vis_counter + 1) % 1000
+
+        neuron_size = 5
+        line_thick = 1
+
+        # Decrease the neuron size to keep the avoid cutting of the neurons
+        w, h = w - 2 * neuron_size, h - 2 * neuron_size
+
+        if counter == 0:
+            self._draw_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+        else:
+            self._draw_shots(_, frame, h, neuron_size, w)
+
+        cv2.imshow(self._vis_window_name, frame)
+        cv2.waitKey(1)
+
+
+    def _draw_shots(self, _, frame, h, neuron_size, w):
+        popul_gap = w // len(self._layers)
+        for popul_idx, population_neurons in enumerate(self._layers):
+            layers_num = len(population_neurons)
+            layer_gap_y = h // layers_num
+            layer_gap_x = popul_gap // layers_num
+
+            for cur_layer_idx, cur_layer in enumerate(population_neurons):
+                if not (self._current_shots[popul_idx][cur_layer_idx].any() or
+                        self._prev_shots[popul_idx][cur_layer_idx].any()):
+                    continue
+
+                neurons_gap = layer_gap_y // (len(cur_layer) + 1)
+
+                for neuron_idx, neuron in enumerate(cur_layer):
+                    shot_flag = self._current_shots[popul_idx][cur_layer_idx][
+                        neuron_idx]
+                    # If this neuron doesn't shoot and it didn't shot last round (and it
+                    # needs to be reset in the frame) don't draw it
+                    if not shot_flag:
+                        if not self._prev_shots[popul_idx][cur_layer_idx][neuron_idx]:
+                            continue
+
+                    location = self._calc_location(cur_layer_idx, layer_gap_x,
+                                                   layer_gap_y, neuron_idx,
+                                                   neuron_size,
+                                                   neurons_gap, popul_gap, popul_idx)
+
+                    # now draw the neuron
+                    self._draw_neuron(frame, location, 0,
+                                      neuron_idx,
+                                      neuron_size,
+                                      popul_idx, shot_flag)
+
+
 def distance(i, j, row_n, col_n):
     """
     calculate the distance between the location i and the location j in the matrix,
@@ -1002,9 +1064,9 @@ def distance(i, j, row_n, col_n):
 
 
 if __name__ == '__main__':
-    N = 100
+    N = 3
     nodes_details = [N, int(N / 4), int(N / 4), int(N / 5)]
-    IINs_details = [(3, 3), (3, 3), (3, 3), (1, 1)]
+    IINs_details = [(3, 3), (3, 3, 4), (3, 3), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     spacial_args = (20, 20)
     feedback = True
