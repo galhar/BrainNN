@@ -2,16 +2,14 @@
 # Date: 14/12/2020
 from src.Fonts_task.font_prediction import FontDataLoader, IMG_SIZE
 from src.brainNN import BrainNN
-from src.hooks import ClassesEvalHook, SaveByEvalHook
+from src.hooks import ClassesEvalHook
 from src.utils.train_utils import DefaultOptimizer, Trainer
+from src.utils.general_utils import get_pparent_dir
 
 import os
-import sys
-import inspect
 
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-pparentdir = os.path.dirname(parentdir)
+
+pparentdir = get_pparent_dir(__file__)
 
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
@@ -40,7 +38,7 @@ def create_trainer(epoches=17):
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
+    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=14)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 

@@ -61,7 +61,8 @@ class BrainNN:
     _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM]
 
     # Layers types:
-    Filters = ''
+    RF = 'Receptive-Field Synapses'
+    FC = 'Fully Connected Synapses'
 
     default_configuration = {
         # Neuron parameters
@@ -81,7 +82,7 @@ class BrainNN:
         SHOOT_THRESHOLD: 40,
         FEEDBACK: False,
         SPACIAL_ARGS: (1, 1),
-        SYNAPSE_SPACIAL_DISTANCE_FACTOR: 1.01,
+        SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
@@ -278,8 +279,7 @@ class BrainNN:
                                              popul_layers_inter_conns):
         # Don't create connections to different layers in different
         # populations
-        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
-                != popul_idx:
+        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect != popul_idx:
             return False
 
         idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
@@ -293,20 +293,16 @@ class BrainNN:
         layer_list[-1][0][IINs_start_idx:] *= -1
 
         # Prevent self loops
-        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
-                == popul_idx:
+        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect == popul_idx:
             # Here it means the layers are the same layer
 
             # Check if it is defined to have inter-connections
             # Default is to have inter-connections, so if it's not
             # defined well it will have inter-connections
-            if popul_layers_inter_conns and not \
-                    popul_layers_inter_conns[ \
-                            cur_layer_idx]:
+            if popul_layers_inter_conns and not popul_layers_inter_conns[cur_layer_idx]:
                 # Here it is set to not have inter-connections. The IINs are the only
                 # neurons to connect to the others
                 layer_list[-1][0][:IINs_start_idx, :IINs_start_idx] = 0
-                # del layer_list[-1]
                 return True
 
             # layer_list[-1][0] is the matrix. layer_list[-1][1] are the idxs
@@ -327,10 +323,6 @@ class BrainNN:
             # Prevent IINs of one layer to shoot to another
             layer_list[-1][0][IINs_start_idx:, :] = 0
 
-            # # Prevent excitatory neurons to shoot into other layer's IINs
-            # IINs_start_idx_to_connect = self._IINs_start_per_popul[
-            #     popul_idx_to_connect]
-            # layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
@@ -366,6 +358,61 @@ class BrainNN:
             # connections between layers
             layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
         return True
+
+
+    def create_RF_synapses(self, mean, std, k_size, stride, src_l_num, src_l_IIN_start,
+                           dst_l_num, dst_l_IIN_start, on_centered=True):
+        # First set the default value, it will shoot into dst IINs
+        syn_mat = np.full((src_l_num, dst_l_num),
+                          mean / 4, dtype=np.float64)
+        syn_mat += np.random.normal(0, std, (src_l_num, dst_l_num))
+        # Prevent src IINs to shoot into dst
+        syn_mat[src_l_IIN_start:, :] = 0
+
+        rows, cols = self._conf_args[BrainNN.SPACIAL_ARGS]
+
+        # Assert the dimensions fit
+        kernels_per_row = np.ceil(cols / stride)
+        kernels_per_col = np.ceil(rows / stride)
+        match_neurons_number = kernels_per_row * kernels_per_col
+        error_str = ("Wrong dimensions for RF layer with %d required and %d in "
+                     "parctice" % (match_neurons_number, dst_l_IIN_start))
+        assert dst_l_IIN_start == match_neurons_number, error_str
+
+        # The complication in the kernel creation is to create sharper kernel than the
+        # trivial implementation np.linspace(mean, -mean / 2, num=k_size) + noise
+        if on_centered:
+            p_range = int(k_size * 2 / 3)
+            n_range = k_size - p_range
+            p_kernel = np.linspace(mean, mean / 4, num=p_range)
+            n_kernel = np.linspace(-mean / 3, -mean * 3 / 4, num=n_range)
+            kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+        else:
+            n_range = int(k_size * 2 / 3)
+            p_range = k_size - n_range
+            p_kernel = np.linspace(-mean, -mean / 4, num=n_range)
+            n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
+            kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+
+        d_to_val = np.zeros((rows + cols,))
+        d_to_val[:k_size] = kernel
+
+        for i in range(dst_l_IIN_start):
+            # Create receptive field for i neuron in the dst_layer
+            for j in range(src_l_IIN_start):
+                # Calculate location of the middle neuron
+                calc_i = i
+                y = calc_i // kernels_per_col
+                calc_i = calc_i % kernels_per_col
+                # Get x location
+                x = calc_i
+
+                middle_neuron = x * stride + y * stride * cols
+                # i is the neuron in the src_layer, j is the corresponding neuron in
+                # dst_layer, middle neuron is the middle of the corresponding kernel
+                syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
+
+        return syn_mat
 
 
     def _validate_inter_connections_format(self, popul_idx, popul_to_connect,
@@ -709,7 +756,6 @@ class BrainNN:
                         assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
                                                       dst_layer_cur_shots.shape[0])
 
-
                         self._synapses_matrices[cur_popul_idx][cur_layer_idx][idx][0] = \
                             self._update_synapses_matrix(shots_matrix, matrix)
 
@@ -952,7 +998,7 @@ def distance(i, j, row_n, col_n):
     # Get x location
     x_i, x_j = i, j
 
-    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i])
+    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i], ord=1)
 
 
 if __name__ == '__main__':

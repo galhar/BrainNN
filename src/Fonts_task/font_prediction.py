@@ -3,11 +3,10 @@
 import os
 import cv2 as cv
 import numpy as np
-import cv2
 
 from src.utils.train_utils import ClassesDataLoader
 
-IMG_SIZE = 20
+IMG_SIZE = 12
 
 
 def flatten_to_image(flat_img):
@@ -15,6 +14,13 @@ def flatten_to_image(flat_img):
 
 
 class FontDataLoader(ClassesDataLoader):
+    DEFAULT = 20
+    SMALL = 12
+    SMALL_SHARP = 13
+    _divider_dict = {DEFAULT: ' resize',
+                     SMALL: '_resized12',
+                     SMALL_SHARP: '_resized_sharp_12'}
+
 
     def __init__(self, data_dir, batched=False, shuffle=True, noise_std=0):
         """
@@ -33,16 +39,19 @@ class FontDataLoader(ClassesDataLoader):
         loading the "resized" pictures into an array of shape [(<label_string>,
         <normalized_np_img>),...]
         :param data_dir:
+        :param type:
         :return: array of the loaded data
         """
 
         if data_dir[-1] != '/' and data_dir[-1] != '\\':
             data_dir += '/'
 
+        divider = FontDataLoader._divider_dict[IMG_SIZE]
+
         data_array = []
         for file_name in os.listdir(data_dir):
-            if "resized" in file_name:
-                label = file_name.split("resized")[0]
+            if divider in file_name:
+                label = file_name.split(divider)[0]
                 # Using 0 to read image in grayscale mode
                 img = cv.imread(data_dir + file_name, 0) / 255.
                 pad_image = np.ones((IMG_SIZE, IMG_SIZE))
@@ -52,7 +61,7 @@ class FontDataLoader(ClassesDataLoader):
                 pad_image[l_pad:r_pad, top_pad:bottom_pad] = img
                 # Turn black into the high values, and white to the low value,
                 # and increase the signal
-                pad_image = 10 * (1 - pad_image)
+                pad_image = 1*(1 - pad_image)
 
                 data_array.append((label, pad_image.flatten()))
         return data_array

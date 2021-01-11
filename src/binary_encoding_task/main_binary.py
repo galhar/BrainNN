@@ -63,7 +63,7 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=15):
+def trainer_evaluation(epoches=10):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader(
         batched=True)))
@@ -81,20 +81,26 @@ def output_distribution_query(epoches=11):
             batched=True), interest_label_neurons))
     trainer.train()
     cls_dist_str = OutputDistributionHook.CLS_DIST_STR
-    return [[str(l),trainer.storage[cls_dist_str][l]] for l in interest_label_neurons]
+    return [[str(l), trainer.storage[cls_dist_str][l]] for l in interest_label_neurons]
 
 
 def create_trainer(epoches=17):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
-    inter_connections = [(False, True), (True, True), (True, True)]
+    inter_connections = [(False, True), (True, True), (False, False)]
     feedback = False
-    iins_factor = 10
-    configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
-                          BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                          BrainNN.FEEDBACK: feedback,
-                          BrainNN.IINS_STRENGTH_FACTOR: iins_factor}
+    iins_factor = 2
+    increase_func = lambda weights: np.full(weights.shape, 0.1)
+    decrease_func = lambda neg_weights: np.maximum(neg_weights / 2, -0.04)
+    configuration_args = {
+        BrainNN.NODES_DETAILS: nodes_details,
+        BrainNN.IINS_PER_LAYER_NUM: IINs_details,
+        BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
+        BrainNN.FEEDBACK: feedback,
+        BrainNN.IINS_STRENGTH_FACTOR: iins_factor,
+        BrainNN.SYNAPSE_INCREASE_FUNC: increase_func,
+        BrainNN.SYNAPSE_DECREASE_FUNC: decrease_func
+    }
 
     net = BrainNN(configuration_args)
     data_loader = BinaryDataLoader(shuffle=True)

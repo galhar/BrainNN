@@ -354,9 +354,83 @@ def check_distance(neuron_i, dist_fac=3, size=(3, 3), into_neuron=False):
 
             neuron_syns = neurons_syn_vec.reshape(size)
 
-            cv2.imshow('hi',neuron_syns)
+            cv2.imshow('hi', neuron_syns)
             cv2.waitKey(10)
 
 
+def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
+    mean, std = 3, 0.3
+    iins = 12
+    img_n = rows * cols
+    src_l_num, src_l_IIN_start = img_n + iins, img_n
+    dst_l_num, dst_l_IIN_start = dst_n + iins, dst_n
+    on_centered = True
+
+    # copyied from the BrainNN:
+    # First set the default value, it will fill the IINs
+    syn_mat = np.full((src_l_num, dst_l_num),
+                      mean / 4, dtype=np.float64)
+    syn_mat += np.random.normal(0, std, (src_l_num, dst_l_num))
+    # Prevent src IINs to shoot into dst
+    syn_mat[src_l_IIN_start:, :] = 0
+    cols = int(src_l_IIN_start / rows)
+
+    # Assert the dimensions fit
+    kernels_per_row = np.ceil(cols / stride)
+    kernels_per_col = np.ceil(rows / stride)
+    match_neurons_number = kernels_per_row * kernels_per_col
+    error_str = ("Wrong dimensions for RF layer with %d required and %d in "
+                 "parctice" % (match_neurons_number, dst_l_IIN_start))
+    assert dst_l_IIN_start == match_neurons_number, error_str
+
+    if on_centered:
+        p_range = int(k_size * 2 / 3)
+        n_range = k_size - p_range
+        p_kernel = np.linspace(mean, mean / 3, num=p_range)
+        n_kernel = np.linspace(-mean / 3, -mean * 3 / 4, num=n_range)
+        kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+
+    else:
+        n_range = int(k_size * 2 / 3)
+        p_range = k_size - n_range
+        p_kernel = np.linspace(-mean, -mean / 4, num=n_range)
+        n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
+        kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+    d_to_val = np.zeros((rows + cols,))
+    d_to_val[:k_size] = kernel
+
+    for i in range(dst_l_IIN_start):
+        # Create receptive field for i neuron in the dst_layer
+        for j in range(src_l_IIN_start):
+            # Calculate location of the middle neuron
+            calc_i = i
+            y = calc_i // kernels_per_col
+            calc_i = calc_i % kernels_per_col
+            # Get x location
+            x = calc_i
+
+            middle_neuron = x * stride + y * stride * cols
+            # i is the neuron in the src_layer, j is the corresponding neuron in
+            # dst_layer, middle neuron is the middle of the corresponding kernel
+            syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
+    # /End of copying
+
+    for i in range(dst_l_IIN_start):
+        if i < dst_l_num:
+            continue
+            # pass
+        neurons_syn_vec = syn_mat[:, i]
+
+        neuron_syns = neurons_syn_vec[:src_l_IIN_start].reshape((rows, cols))
+
+        plt.imshow(neuron_syns)
+        plt.colorbar()
+        plt.pause(0.1)
+        plt.show()
+    plt.imshow(syn_mat)
+    plt.colorbar()
+    plt.show()
+
+
 if __name__ == '__main__':
-    check_distance(5,dist_fac=2, size=(20, 10))
+    check_RF_layers(5, stride=3, dst_n=64)

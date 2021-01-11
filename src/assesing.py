@@ -240,6 +240,7 @@ def dummy_3d_func():
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
     load_path = '  records 12_27_20 00_30.json'
-    check_func = output_distribution_query
-    setattr(check_func, 'title', 'Fonts (80, 80)x4')
-    average_over_nets(check_func, iterations=25, scatter=True, load=load_path)
+    check_func = trainer_evaluation
+    setattr(check_func, 'title', 'Binary, negative weights support, the new learning '
+                                 'func')
+    average_over_nets(check_func, iterations=20)#, scatter=True, load=load_path)
