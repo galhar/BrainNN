@@ -44,10 +44,6 @@ def identity_evaluation(epoches=6):
     trainer.register_hook(
         lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=True)))
     trainer.train()
-    # net.set_visualization('default')
-    # print(trainer.storage[ClassesEvalHook.TOT_ACC_STR])
-    # net.visualize()
-    # cv2.waitKey()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
