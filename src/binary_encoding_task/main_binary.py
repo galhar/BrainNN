@@ -4,7 +4,7 @@ from src.binary_encoding_task.binary_prediction import create_binary_input_gener
     evaluate_binary_representation_nn, BinaryDataLoader, BinaryOneOneDataLoader, \
     BinaryOneOneEvalHook
 from src.brainNN import BrainNN
-from src.utils.train_utils import Trainer, DefaultOptimizer, TrainNetWrapper
+from src.utils.train_utils import Trainer, DefaultOptimizer, DefaultSymbolicOptimizer
 import numpy as np
 from src.hooks import ClassesEvalHook, SaveByEvalHook, OutputDistributionHook
 import cv2
@@ -86,21 +86,17 @@ def output_distribution_query(epoches=11):
 
 def create_trainer(epoches=17):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
-    IINs_details = [(3, ), (3, ), (1, )]
+    IINs_details = [(3,), (3,), (1,)]
     inter_connections = [(False,), (True,), (False,)]
     feedback = False
     iins_factor = 2
-    increase_func = lambda weights: np.full(weights.shape, 0.1)
-    decrease_func = lambda neg_weights: np.maximum(neg_weights / 2, -0.04)
-    vis_str = 'light'
+    vis_str = 'None'
     configuration_args = {
         BrainNN.NODES_DETAILS: nodes_details,
         BrainNN.IINS_PER_LAYER_NUM: IINs_details,
         BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
         BrainNN.FEEDBACK: feedback,
         BrainNN.IINS_STRENGTH_FACTOR: iins_factor,
-        BrainNN.SYNAPSE_INCREASE_FUNC: increase_func,
-        BrainNN.SYNAPSE_DECREASE_FUNC: decrease_func,
         BrainNN.VISUALIZATION_FUNC_STR: vis_str
     }
 

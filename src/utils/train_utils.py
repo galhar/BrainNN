@@ -200,16 +200,14 @@ class OptimizerBase:
 class DefaultOptimizer(OptimizerBase):
 
     def __init__(self, net, sample_reps, epoches, inc_prob=0.7, dec_prob=0.2):
-        # OptimizerBase.__init__(self, net, lambda weights: np.full(weights.shape, 0.1),
-        #                        lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
-        #                        inc_prob, dec_prob, sample_reps, epoches)
         OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04),
                                lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
                                inc_prob, dec_prob, sample_reps, epoches)
-        # Injection array the same size as the last population. Most of the time we
-        # only inject to the first layer of the last population
+
+        # inj_arr size of last_popul. Although we only use the first layer
         last_popul = self._net.get_output(whole_popul=True)
         self._inj_arr = np.zeros((len(last_popul), len(last_popul[0])))
+
         self._inj_lim = 0.9 * self._net.get_shot_threshold()
 
 
@@ -232,6 +230,29 @@ class DefaultOptimizer(OptimizerBase):
             label_neuron] <= self._inj_lim else 0
 
         self._net.set_last_popul_injection(self._inj_arr)
+
+
+class DefaultSymbolicOptimizer(OptimizerBase):
+
+    def __init__(self, net, sample_reps, epoches, inc_prob=1, dec_prob=0.2):
+        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04),
+                               lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
+                               inc_prob, dec_prob, sample_reps, epoches)
+
+        last_popul_shots = self._net.get_output(whole_popul=True, get_shots=True)
+        self._symbolic_shots = [np.zeros((len(last_popul_shots[0]),))]
+        # Set to None every layer we don't want to affect
+        self._symbolic_shots += [None for i in range(len(last_popul_shots) - 1)]
+
+
+    def inject_label(self, label_neuron):
+        """
+        :param label_neuron: the neuron of the correct labeling
+        :return:
+        """
+        self._symbolic_shots[0][label_neuron] = 1
+        self._net.set_symbolic_shots(self._symbolic_shots)
+        self._symbolic_shots[0] = np.zeros_like(self._symbolic_shots[0])
 
 
 class Trainer:
@@ -274,9 +295,7 @@ class Trainer:
         self._build_hooks()
 
         for ep in range(self.optimizer.epoches):
-
             for sample_batch, labels in self._data_loader:
-
                 # To allow progress bar
                 samples_idxs = range(len(sample_batch))
                 if self._verbose and not self._data_loader._batched:

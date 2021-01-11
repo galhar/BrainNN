@@ -3,7 +3,7 @@
 from src.Identity_task.identity_prediction import IdentityDataLoader, N
 from src.brainNN import BrainNN
 from src.hooks import ClassesEvalHook, SaveByEvalHook
-from src.utils.train_utils import DefaultOptimizer, Trainer
+from src.utils.train_utils import DefaultOptimizer, DefaultSymbolicOptimizer, Trainer
 
 import os
 import sys
@@ -26,7 +26,7 @@ def create_trainer(epoches=17):
     IINs_details = [(4, 4), (1, 4)]
     inter_connections = [(False, False), (False, False)]
     feedback = False
-    vis_str = 'None'
+    vis_str = 'light'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
@@ -34,7 +34,7 @@ def create_trainer(epoches=17):
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=6)
+    optimizer = DefaultSymbolicOptimizer(net=net, epoches=epoches, sample_reps=6)
     trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 

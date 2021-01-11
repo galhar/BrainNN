@@ -86,8 +86,8 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
-        SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
+        SYNAPSE_INCREASE_FUNC: lambda weights: np.minimum(weights / 2, 0.04),
+        SYNAPSE_DECREASE_FUNC: lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
         VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
@@ -141,6 +141,7 @@ class BrainNN:
         # Initialize records structures
         self._sensory_input = None
         self._inject_to_last_popul = None
+        self._symbolic_shots = None
         self._init_model()
         self._init_sensory_input()
 
@@ -301,7 +302,8 @@ class BrainNN:
             # Check if it is defined to have inter-connections
             # Default is to NOT have inter-connections, so if it's not
             # defined well it will not have inter-connections
-            if popul_layers_inter_conns is None or not popul_layers_inter_conns[cur_layer_idx]:
+            if popul_layers_inter_conns is None or not popul_layers_inter_conns[
+                cur_layer_idx]:
                 # Here it is set to not have inter-connections. The IINs are the only
                 # neurons to connect to the others
                 layer_list[-1][0][:IINs_start_idx, :IINs_start_idx] = 0
@@ -468,6 +470,9 @@ class BrainNN:
             np.zeros(last_popul_excitatory_neurons_num) for i
             in range(len(self._layers[-1]))]
 
+        # Initialize no symbolic shots, None for each layer in the last popul
+        self._symbolic_shots = [None for i in range(len(self._current_shots[-1]))]
+
 
     def save_state(self, name=None, overwrite=True):
         """
@@ -569,13 +574,29 @@ class BrainNN:
         """
         # Update the input and the injection to the last layer
         IINs_start_inp_popul = self._IINs_start_per_popul[0]
-        IINs_start_out_popul = self._IINs_start_per_popul[-1]
         self._layers[0][0][:IINs_start_inp_popul] += self._sensory_input
+
+        IINs_start_out_popul = self._IINs_start_per_popul[-1]
         for i, layer in enumerate(self._layers[-1]):
-            self._layers[-1][i][:IINs_start_out_popul] += \
-                self._inject_to_last_popul[i]
-        # Iterate
+            self._layers[-1][i][:IINs_start_out_popul] += self._inject_to_last_popul[i]
+
+        # Iterate:
         self._iterate()
+
+        # Change to symbolic shots vector, for weight updating process
+        last_pop_IIN_start = self._IINs_start_per_popul[-1]
+        tmp_cur_shots_last_popul = self._current_shots[-1].copy()
+        for i in range(len(self._symbolic_shots)):
+            if self._symbolic_shots[i] is not None:
+                self._current_shots[-1][i][:last_pop_IIN_start] = self._symbolic_shots[i]
+
+        # Update weights
+        if not self._freeze:
+            self._update_weights()
+
+        # Change back to the real shots vector, after weight updating
+        self._current_shots[-1] = tmp_cur_shots_last_popul
+
         self.visualize()
 
 
@@ -609,6 +630,10 @@ class BrainNN:
         # Zero the injection
         for i in range(len(self._inject_to_last_popul)):
             self._inject_to_last_popul[i].fill(0)
+
+        # Zero the symbolic shots
+        for i in range(len(self._symbolic_shots)):
+            self._symbolic_shots[i] = None
 
         # Zero the current and previous shots
         for popul_idx, popul_shots in enumerate(self._current_shots):
@@ -651,6 +676,25 @@ class BrainNN:
                     raise ValueError("inject to last popult during training with wrong "
                                      "dimension!")
                 self._inject_to_last_popul[inject_arr_idx] = arr_list[inject_arr_idx]
+
+
+    def set_symbolic_shots(self, symb_shots):
+        # For None
+        if symb_shots is None:
+            return
+
+        # Make sure all the dimension are right
+        IINS_start = self._IINs_start_per_popul[-1]
+        if len(symb_shots) == len(self._current_shots[-1]):
+            self._symbolic_shots = symb_shots
+
+            for symb_arr_idx, symb_arr in enumerate(symb_shots):
+                # Allow not to inject to a specific layer
+                if symb_arr is None:
+                    continue
+                if symb_arr.shape[0] != IINS_start:
+                    raise ValueError(
+                        "Symbolic shots during training with wrong dimension!")
 
 
     def get_shot_threshold(self):
@@ -714,9 +758,6 @@ class BrainNN:
                 cur_layer += np.maximum(self._change_in_layers[cur_popul_idx][
                                             cur_layer_idx], -cur_layer)
                 self._change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
-
-        if not self._freeze:
-            self._update_weights()
 
 
     def _update_weights(self):
