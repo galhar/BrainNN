@@ -86,7 +86,8 @@ class ClassesEvalHook(HookBase):
     TOT_ACC_STR = 'Total accuracy over epochs'
 
 
-    def __init__(self, trainer, data_loader, req_shots_num=5, noise_std=0):
+    def __init__(self, trainer, data_loader, req_shots_num=5, noise_std=0,
+                 vis_last_ep=False):
         """
 
         :param trainer:
@@ -104,6 +105,10 @@ class ClassesEvalHook(HookBase):
         self._net_wrapper = EvalNetWrapper(self._net,
                                            noise_std=noise_std,
                                            req_shots_num=req_shots_num)
+
+        self._vis_last_ep = vis_last_ep
+        self._last_epoch = self._trainer.optimizer.epochs
+
         self._cls_lst = self._data_loader.classes_neurons
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR] = []
@@ -129,6 +134,26 @@ class ClassesEvalHook(HookBase):
         # Save to trainer history
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
+        self._ep_idx += 1
+        self._net.unfreeze()
+
+        if self._ep_idx == self._last_epoch and self._vis_last_ep:
+            self.visualize()
+
+
+    def visualize(self):
+        self._net.freeze()
+        self._net.set_visualization('debug')
+
+        for sample_batch, labels in self._data_loader:
+            for i in range(len(sample_batch)):
+                sample, l = sample_batch[i], labels[i]
+                output = self._net_wrapper(sample)
+                pred_y = np.argmax(output)
+
+                print("Output:", list(output), "|", pred_y)
+
+                self._net.zero_neurons()
 
         self._net.unfreeze()
 

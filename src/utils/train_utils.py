@@ -1,6 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import numpy as np
+import cv2
 import random
 from tqdm import tqdm
 
@@ -59,8 +60,7 @@ class TrainNetWrapper(NetWrapperBase):
 
 class EvalNetWrapper(NetWrapperBase):
 
-    def __init__(self, net, noise_std=0,
-                 req_shots_num=5, norm_func=np_softmax):
+    def __init__(self, net, noise_std=0, req_shots_num=5, norm_func=np_softmax):
         super().__init__(net, req_shots_num=req_shots_num, noise_std=noise_std)
         self._norm_func = norm_func
 
@@ -176,14 +176,14 @@ class ClassesDataLoader(DataLoaderBase):
 class OptimizerBase:
 
     def __init__(self, net, increase_func, decrease_func, increase_prob,
-                 decrease_prob, sample_reps, epoches):
+                 decrease_prob, sample_reps, epochs):
         self._net = net
         self.inc_func = increase_func
         self.inc_prob = increase_prob
         self.dec_func = decrease_func
         self.dec_prob = decrease_prob
         self.sample_reps = sample_reps
-        self.epoches = epoches
+        self.epochs = epochs
 
 
     def update_net(self):
@@ -199,37 +199,45 @@ class OptimizerBase:
 
 class DefaultOptimizer(OptimizerBase):
 
-    def __init__(self, net, sample_reps, epoches, inc_prob=0.7, dec_prob=0.2):
-        # OptimizerBase.__init__(self, net, lambda weights: np.full(weights.shape, 0.1),
-        #                        lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
-        #                        inc_prob, dec_prob, sample_reps, epoches)
-        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04),
+    def __init__(self, net, sample_reps, epochs, sharp=False, inc_prob=0.7,
+                 dec_prob=0.2):
+        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04,
+                                                                     np.exp(-weights)),
                                lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
-                               inc_prob, dec_prob, sample_reps, epoches)
-        # Injection array the same size as the last population. Most of the time we
-        # only inject to the first layer of the last population
+                               inc_prob, dec_prob, sample_reps, epochs)
+
+        # inj_arr size of last_popul. Although we only use the first layer
         last_popul = self._net.get_output(whole_popul=True)
         self._inj_arr = np.zeros((len(last_popul), len(last_popul[0])))
-        self._inj_lim = 0.9 * self._net.get_shot_threshold()
+
+        self._sharp = sharp
+        lim_fac = 0.9
+        if sharp:
+            lim_fac = 0.99
+        self._inj_lim = lim_fac * self._net.get_shot_threshold()
 
 
-    def inject_label(self, label_neuron):
+    def inject_label(self, l_neuron):
         """
-        :param label_neuron: the neuron of the correct labeling
+        :param l_neuron: the neuron of the correct labeling
         :return:
         """
         output = self._net.get_output()
-        indexes_without_cur_num = (
-                np.arange(len(self._inj_arr[0])) != label_neuron)
+        idxs_without_cur_num = (np.arange(len(self._inj_arr[0])) != l_neuron)
+
+        dec_fac, inc_fac = 0.1, 0.1
+        if self._sharp:
+            dec_fac = 1
 
         # Inject to teach the network
         # decrease from the wrong neurons
-        self._inj_arr[0][indexes_without_cur_num] = - output[
-            indexes_without_cur_num] * 0.1
-        # increase to the right neuron
-        inj = output[label_neuron] * 0.01
-        self._inj_arr[0][label_neuron] = inj if inj + output[
-            label_neuron] <= self._inj_lim else 0
+        self._inj_arr[0][idxs_without_cur_num] = - output[idxs_without_cur_num] * dec_fac
+        # increase to the right neuron, make sure (0<inj && (inj + current<_inj_lim))
+        inj = self._inj_lim if self._sharp else output[l_neuron] * inc_fac
+        inj = min(inj, self._inj_lim - output[l_neuron])
+        if inj < 0:
+            inj = 0
+        self._inj_arr[0][l_neuron] = inj
 
         self._net.set_last_popul_injection(self._inj_arr)
 
@@ -273,10 +281,8 @@ class Trainer:
     def train(self):
         self._build_hooks()
 
-        for ep in range(self.optimizer.epoches):
-
+        for ep in range(self.optimizer.epochs):
             for sample_batch, labels in self._data_loader:
-
                 # To allow progress bar
                 samples_idxs = range(len(sample_batch))
                 if self._verbose and not self._data_loader._batched:

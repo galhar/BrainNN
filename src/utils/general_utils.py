@@ -1,6 +1,8 @@
 # Writer: Gal Harari
 # Date: 23/11/2020
 import json, pickle
+import os
+
 import numpy as np
 
 JSON_SUFFIX = '.json'
@@ -49,3 +51,11 @@ def convert_pkl_to_json(name):
         data = pickle.load(input_file)
 
     save_json(data, name)
+
+
+def get_pparent_dir(file_arg):
+    currentdir = os.path.dirname(os.path.abspath(file_arg))
+    # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    parentdir = os.path.dirname(currentdir)
+    pparentdir = os.path.dirname(parentdir)
+    return pparentdir

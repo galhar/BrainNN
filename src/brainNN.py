@@ -15,6 +15,7 @@ RECORD_SAVE_NAME = 'visualization_video'
 class BrainNN:
     NODES_DETAILS = 'Layers details [population := (IO neurons num, preds neurons num)]'
     IINS_PER_LAYER_NUM = 'IINs per layer num [(IO IINs num, preds IINs num)]'
+    CONNECTIONS_MAT = 'Stats for each population pair if and which connection it has'
     SYNAPSES_INITIALIZE_MEAN = 'Initialization of synapses to this size'
     SYNAPSES_INITIALIZE_STD = 'The precentage of the INITIALIZE FACTOR that will be the' \
                               ' std'
@@ -24,8 +25,6 @@ class BrainNN:
                               'connections stronger by this factor. in (1,inf]'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
-    FEEDBACK = 'Flag (True or False) to say if there will be connections from a ' \
-               'population to lower populations'
     SPACIAL_ARGS = 'should be only changed in case of images. in that case insert ' \
                    '(<rows_num>,<columns_num>)'
     SYNAPSE_SPACIAL_DISTANCE_FACTOR = 'Determines the spacial strength insize inner ' \
@@ -51,7 +50,6 @@ class BrainNN:
                             'iteration.'
     VISUALIZATION_FUNC_STR = 'Visualization function to use'
     VISUALIZATION_SIZE = "Visualization image's size"
-    INTER_CONNECTIONS_PER_LAYER = 'Stats for each layer if it has inter-connections'
     RECORD_FLAG = 'Record the chosen visualization of the run. Also allows to disable ' \
                   'viewing if recording. [to_record_, to_show_during_run]'
     SAVE_SYNAPSES = 'Saved Synapses associated string'
@@ -60,15 +58,18 @@ class BrainNN:
     # The parameters requires to save a net in the configuration arguments
     _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM]
 
+    # Layers types:
+    RF = 'Receptive-Field Synapses'
+    FC = 'Fully Connected Synapses'
+
     default_configuration = {
         # Neuron parameters
         # [0][0] layer is the input layer. [-1][0] layer is the output layer
         NODES_DETAILS: [4, 10, 10],
         # This also sets the number of layers in population
         IINS_PER_LAYER_NUM: [(2, 1), (1, 3), (1, 1)],
-        # In order for each population setup regarding the inter-connections to count,
-        # it has to be the same number of layers in it.
-        INTER_CONNECTIONS_PER_LAYER: [(False, True), (True, False), (True, True)],
+        # Has to be of dim [<popul_num>,<popul_num>]
+        CONNECTIONS_MAT: [[FC, FC, 0], [0, FC, FC], [0, FC, FC]],
         # This might be connected to " WEIGHTS_SUM_INTO_NEURON "
         SYNAPSES_INITIALIZE_MEAN: 5,
         SYNAPSES_INITIALIZE_STD: 0.15,
@@ -76,14 +77,14 @@ class BrainNN:
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
         SHOOT_THRESHOLD: 40,
-        FEEDBACK: False,
         SPACIAL_ARGS: (1, 1),
-        SYNAPSE_SPACIAL_DISTANCE_FACTOR: 1.01,
+        SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
-        SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
+        SYNAPSE_INCREASE_FUNC: lambda weights: np.minimum(weights / 2, 0.04,
+                                                          np.exp(-weights)),
+        SYNAPSE_DECREASE_FUNC: lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
         VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
@@ -99,25 +100,27 @@ class BrainNN:
         self._thresh = self._conf_args[BrainNN.SHOOT_THRESHOLD]
         self._freeze = False
 
-        self._feedback = self._conf_args[BrainNN.FEEDBACK]
-
         self._syn_memory_factor = self._conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
         self._syn_inc_func = self._conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
         self._syn_inc_prob = self._conf_args[BrainNN.SYNAPSE_INCREASE_PROBABILITY]
         self._syn_dec_func = self._conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
         self._syn_dec_prob = self._conf_args[BrainNN.SYNAPSE_DECREASE_PROBABILITY]
+        self._validate_learning_functions()
 
         # Visualize section
         # Create visualization frame
         self._visualize_dict = {
             'default': self._default_visualize,
-            'None': (lambda: None)
+            'light': self._light_visualize,
+            'debug': self._debug_visualize,
+            'None': pass_func
         }
         vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
         self._visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
         h, w, _ = self._visualization_frame.shape
         # Choose visualization function
         self.set_visualization(self._conf_args[BrainNN.VISUALIZATION_FUNC_STR])
+        self._vis_counter = 0
 
         # Create visualization window
         self._vis_window_name = VISUALIZATION_WINDOW_NAME
@@ -137,10 +140,8 @@ class BrainNN:
         self._init_model()
         self._init_sensory_input()
 
-        # Those should be the max expected value of the connections and of the neurons.
-        # It's the max value from which every higher value will be with the same color
-        # in the visualization
-        self._connections_max_res = self._determine_weights_res()
+        # Determine max value for visualization [pos_max,neg_max]
+        self._syns_max_res = self._determine_weights_res()
         self._neurons_max_res = self._thresh
 
 
@@ -152,16 +153,18 @@ class BrainNN:
 
 
     def _determine_weights_res(self):
-        max_value = 0.
+        max_value,min_value = 0.,0.
         # Iterate only on synapses from the first layer, assuming it represents well
         # all the others
         for mat, idx in self._synapses_matrices[0][0]:
             mat_max = np.max(mat)
+            mat_min = np.min(mat)
             max_value = mat_max if mat_max > max_value else max_value
+            min_value = mat_min if mat_min < min_value else min_value
 
         # That's not accurate! It's not that a weights can only increase by factor of 2,
         # But that's the approximation
-        return max_value * 2
+        return max_value * 2, min_value * 2
 
 
     def _init_model(self):
@@ -207,8 +210,8 @@ class BrainNN:
         IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
 
         # This determines for each layer if it will have inter-connections
-        inter_connections_flags = self._conf_args[
-            BrainNN.INTER_CONNECTIONS_PER_LAYER]
+        conn_mat = self._conf_args[BrainNN.CONNECTIONS_MAT]
+        conn_mat = self._validate_connections_mat_format(conn_mat)
 
         # Arranged in [ population list[ layer list[matrices from layer to other
         # ones:= [matrix, (popul_dst_idx, layer_dst_idx) ] ] ]
@@ -216,46 +219,39 @@ class BrainNN:
         for popul_idx, population_neurons in enumerate(self._neurons_per_layer):
             population_list = []
             self._synapses_matrices.append(population_list)
+            popul_conns = conn_mat[popul_idx]
 
             for cur_layer_idx, layer_neurons_num in enumerate(population_neurons):
                 layer_list = []
                 population_list.append(layer_list)
 
-                # Now iterate over all layers and create connections. We will create
-                # only forward connections
-
-                # Normalize each neuron's output. It depends only on the weights in the
-                # matrices from its layer to others, only on its relevant row on these
-                # matrices. So normalize the values in each row over the matrices.
+                # Normalize each neuron's output (depends on its corresponding rows)
                 normalize_vec = np.zeros((layer_neurons_num,))
 
-                # Allow backwards connections
-                first_popul_to_conn = popul_idx
-                if self._feedback:
-                    first_popul_to_conn = 0
-
-                for popul_idx_to_connect in range(first_popul_to_conn,
-                                                  len(self._neurons_per_layer)):
+                for popul_idx_to_connect in range(len(self._neurons_per_layer)):
                     popul_to_connect = self._neurons_per_layer[popul_idx_to_connect]
 
-                    # Determine inter-connections inside the population's layers
-
-                    popul_layers_inter_conns = self._validate_inter_connections_format(
-                        popul_idx, popul_to_connect, inter_connections_flags)
-
-                    for layer_to_conn_idx, layer_to_conn in enumerate(popul_to_connect):
+                    for layer_to_conn_idx, layer_to_conn_n in enumerate(popul_to_connect):
+                        # Don't connect different layers in different populations
+                        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
+                                != popul_idx:
+                            continue
+                        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
                         # Create connections to layer "layer_to_connect" from current
                         # layer
-                        if self._create_connections_between_2_layers(layer_neurons_num,
-                                                                     layer_to_conn,
-                                                                     layer_list,
-                                                                     cur_layer_idx,
-                                                                     layer_to_conn_idx,
-                                                                     popul_idx,
-                                                                     popul_idx_to_connect,
-                                                                     mean, std,
-                                                                     popul_layers_inter_conns):
-                            normalize_vec += layer_list[-1][0].sum(axis=1)
+                        syn_mat = self._create_connections_between_2_layers(
+                            layer_neurons_num,
+                            layer_to_conn_n,
+                            cur_layer_idx,
+                            layer_to_conn_idx,
+                            popul_idx,
+                            popul_idx_to_connect,
+                            mean, std,
+                            popul_conns)
+
+                        if syn_mat is not None:
+                            layer_list.append([syn_mat, idxs])
+                            normalize_vec += np.abs(layer_list[-1][0]).sum(axis=1)
                 # The IINs might be stronger than the excitatory
                 normalize_vec[self._IINs_start_per_popul[popul_idx]:] /= IINs_factor
 
@@ -265,71 +261,69 @@ class BrainNN:
                     layer_list[i][0] = self._thresh * mat / normalize_vec[:, np.newaxis]
 
 
-    def _create_connections_between_2_layers(self, layer_neurons_num,
-                                             l_to_conn_neurons_n,
-                                             layer_list,
+    def _create_connections_between_2_layers(self, src_neurons_num,
+                                             dst_neurons_num,
                                              cur_layer_idx,
                                              layer_to_conn_idx, popul_idx,
                                              popul_idx_to_connect, mean, std,
-                                             popul_layers_inter_conns):
-        # Don't create connections to different layers in different
-        # populations
-        if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
-                != popul_idx:
-            return False
+                                             popul_cons):
+        syn_mat = None
 
-        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
-        layer_list.append([np.random.normal(mean, std, (layer_neurons_num,
-                                                        l_to_conn_neurons_n)),
-                           idxs])
+        syn_data = popul_cons[popul_idx_to_connect]
+        if syn_data is None:
+            return None
 
-        IINs_start_idx = self._IINs_start_per_popul[popul_idx]
+        syn_type = syn_data[0]
 
-        # Prevent self loops
-        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect \
-                == popul_idx:
+        if syn_type == BrainNN.RF:
+            k_size, stride = syn_data[1]
+            src_extory_num = self._IINs_start_per_popul[popul_idx]
+            dst_extory_num = self._IINs_start_per_popul[popul_idx_to_connect]
+
+            syn_mat = self.create_RF_synapses(mean, std, k_size, stride, src_neurons_num,
+                                    src_extory_num,
+                                    dst_neurons_num, dst_extory_num)
+
+        if syn_type == BrainNN.FC or popul_idx_to_connect == popul_idx:
+            syn_mat = self._create_FC_synapses(cur_layer_idx, dst_neurons_num,
+                                               src_neurons_num, layer_to_conn_idx, mean,
+                                               popul_idx, popul_idx_to_connect, std)
+
+        return syn_mat
+
+
+    def _create_FC_synapses(self, cur_layer_idx, l_to_conn_neurons_n, layer_neurons_num,
+                            layer_to_conn_idx, mean, popul_idx, popul_idx_to_connect,
+                            std):
+        syn_mat = np.random.normal(mean, std, (layer_neurons_num, l_to_conn_neurons_n))
+        extory_num = self._IINs_start_per_popul[popul_idx]
+
+        # Allow inhibition
+        syn_mat[extory_num:] *= -1
+
+        if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect == popul_idx:
             # Here it means the layers are the same layer
+            # Create only connections to and from the IINs
+            syn_mat[:extory_num, :extory_num] = 0
+            return syn_mat
 
-            # Check if it is defined to have inter-connections
-            # Default is to have inter-connections, so if it's not
-            # defined well it will have inter-connections
-            if popul_layers_inter_conns and not \
-                    popul_layers_inter_conns[ \
-                            cur_layer_idx]:
-                # Here it is set to not have inter-connections. The IINs are the only
-                # neurons to connect to the others
-                layer_list[-1][0][:IINs_start_idx, :IINs_start_idx] = 0
-                # del layer_list[-1]
-                return True
+        # Here it means those are 2 different layers
+        # In the same population create only between nodes
+        if popul_idx_to_connect == popul_idx:
+            inner_non_IINS_mat = syn_mat[:extory_num, :extory_num]
+            idxs_to_delete_in_non_IIN_part = ~np.eye(inner_non_IINS_mat.shape[0],
+                                                     dtype=bool)
+            # Delete all but diagonal in the non IINs part of the matrix
+            syn_mat[:extory_num, :extory_num][
+                idxs_to_delete_in_non_IIN_part] = 0
 
-            # layer_list[-1][0] is the matrix. layer_list[-1][1] are the idxs
-            # Prevent self loops.
-            np.fill_diagonal(layer_list[-1][0], 0)
-        else:
-            # Here it means those are 2 different layers
-
-            # In the ame population create only between nodes
-            if popul_idx_to_connect == popul_idx:
-                inner_non_IINS_mat = layer_list[-1][0][:IINs_start_idx, :IINs_start_idx]
-                idxs_to_delete_in_non_IIN_part = ~np.eye(inner_non_IINS_mat.shape[0],
-                                                         dtype=bool)
-                # Delete all but diagonal in the non IINs part of the matrix
-                layer_list[-1][0][:IINs_start_idx, :IINs_start_idx][
-                    idxs_to_delete_in_non_IIN_part] = 0
-
-            # Prevent IINs of one layer to shoot to another
-            layer_list[-1][0][IINs_start_idx:, :] = 0
-
-            # # Prevent excitatory neurons to shoot into other layer's IINs
-            # IINs_start_idx_to_connect = self._IINs_start_per_popul[
-            #     popul_idx_to_connect]
-            # layer_list[-1][0][:, IINs_start_idx_to_connect:] = 0
+        # Prevent IINs of one layer to shoot to another
+        syn_mat[extory_num:, :] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
         dist_fac = self._conf_args[BrainNN.SYNAPSE_DISTANCE_FACTOR]
         spacial_dist_fac = self._conf_args[BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR]
-
         # for the same layer treat differently:
         if popul_idx_to_connect == popul_idx:
             # connections in the same layer get weaken as the neurons are far from each
@@ -337,44 +331,132 @@ class BrainNN:
             # It's the same LAYER and not POPULATION since all this loop does for
             # different layers in the same population is strengthen the nodes connecitons
 
-            # only mess with the excitatory neurons
-            extory_num = self._IINs_start_per_popul[popul_idx]
-
             # For case of images to insert spacial meaning in the first population,
             # else it is always 1,1
             rows, cols = 1, 1
             if popul_idx == 0:
                 rows, cols = self._conf_args[BrainNN.SPACIAL_ARGS]
 
-            size = layer_list[-1][0].shape
+            size = syn_mat.shape
             mult_mat = np.ones(size)
             for i in range(size[0]):
                 for j in range(size[1]):
                     if i < extory_num and j < extory_num:
                         mult_mat[i, j] *= spacial_dist_fac ** (
-                                    1 - distance(i, j, rows, cols))
+                                1 - distance(i, j, rows, cols))
 
-            layer_list[-1][0] *= mult_mat
+            syn_mat *= mult_mat
         else:
             # connections between layers
-            layer_list[-1][0] *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
-        return True
+            syn_mat *= (dist_fac ** (1 - abs(popul_idx_to_connect - popul_idx)))
+        return syn_mat
 
 
-    def _validate_inter_connections_format(self, popul_idx, popul_to_connect,
-                                           popul_layers_inter_conns):
-        # Make sure the dimensions are right
-        if len(popul_layers_inter_conns) != len(self._layers) or \
-                len(popul_layers_inter_conns[popul_idx]) != len(popul_to_connect):
-            # It means the setup is not defined properly
-            popul_layers_inter_conns = None
-            print("The inter-connections flags are not the same dimension "
-                  "as the layers in the model are!")
+    def create_RF_synapses(self, mean, std, k_size, stride, src_n_num, src_extory_num,
+                           dst_n_num, dst_extory_num, on_centered=True):
+        # First set the default value, it will shoot into dst IINs
+        syn_mat = np.full((src_n_num, dst_n_num),
+                          mean / 4, dtype=np.float64)
+        syn_mat += np.random.normal(0, std, (src_n_num, dst_n_num))
+        # Prevent src IINs to shoot into dst
+        syn_mat[src_extory_num:, :] = 0
+
+        rows, cols = self._conf_args[BrainNN.SPACIAL_ARGS]
+
+        # Assert the dimensions fit
+        kernels_per_row = np.ceil(cols / stride)
+        kernels_per_col = np.ceil(rows / stride)
+        match_neurons_number = kernels_per_row * kernels_per_col
+        error_str = ("Wrong dimensions for RF layer with %d required and %d in "
+                     "parctice" % (match_neurons_number, dst_extory_num))
+        assert dst_extory_num == match_neurons_number, error_str
+
+        # The complication in the kernel creation is to create sharper kernel than the
+        # trivial implementation np.linspace(mean, -mean / 2, num=k_size) + noise
+        if on_centered:
+            p_range = int(k_size * 2 / 3)
+            n_range = k_size - p_range
+            p_kernel = np.linspace(mean, mean / 4, num=p_range)
+            n_kernel = np.linspace(-mean / 3, -mean * 3 / 4, num=n_range)
+            kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
         else:
-            # It means everything is fine
-            popul_layers_inter_conns = popul_layers_inter_conns[
-                popul_idx]
-        return popul_layers_inter_conns
+            n_range = int(k_size * 2 / 3)
+            p_range = k_size - n_range
+            p_kernel = np.linspace(-mean, -mean / 4, num=n_range)
+            n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
+            kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+
+        d_to_val = np.zeros((rows + cols,))
+        d_to_val[:k_size] = kernel
+
+        for i in range(dst_extory_num):
+            # Create receptive field for i neuron in the dst_layer
+            for j in range(src_extory_num):
+                # Calculate location of the middle neuron
+                calc_i = i
+                y = calc_i // kernels_per_col
+                calc_i = calc_i % kernels_per_col
+                # Get x location
+                x = calc_i
+
+                middle_neuron = x * stride + y * stride * cols
+                # i is the neuron in the src_layer, j is the corresponding neuron in
+                # dst_layer, middle neuron is the middle of the corresponding kernel
+                syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
+
+        return syn_mat
+
+
+    def _validate_connections_mat_format(self, conn_mat):
+        popul_num = len(self._layers)
+
+        default = [[None for i in range(popul_num)] for i in range(popul_num)]
+        for i in range(popul_num):
+            default[i][i] = [BrainNN.FC]
+            if i < popul_num - 1:
+                default[i][i + 1] = [BrainNN.FC]
+
+        # Make sure the dimensions are right, else use default
+        if len(conn_mat) != popul_num or len(conn_mat[0]) != popul_num:
+            # It means the setup is not defined properly
+            conn_mat = default
+            print("The connections matrix should be of dim [<popl_num>, <popul_num>]")
+
+        # For every connection that isn't in the right format use the default
+        for i in range(len(conn_mat)):
+            for j in range(len(conn_mat[0])):
+                if type(conn_mat[i][j]) != list:
+                    conn_mat[i][j] = default[i][j]
+                elif conn_mat[i][j][0] not in [BrainNN.FC, BrainNN.RF]:
+                    conn_mat[i][j] = default[i][j]
+
+        return conn_mat
+
+
+    def _validate_learning_functions(self):
+        """
+        Make sure the decrease function can't inverse a synapse sign, the increase
+        functions is positive, and the decrease function preserve 0's
+        :return:
+        """
+        check_vec = np.linspace(0.0,
+                                2 * self._conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN],
+                                num=100)
+
+        # Assert the increase functions always increase
+        positive = self._syn_inc_func(check_vec)
+        assert np.all(positive >= 0), "Increase function is able to not increase"
+
+        # Assert the decrease function is limited and won't inverse a synapse sign
+        limited = self._syn_dec_func(check_vec * -1)
+        assert np.all(
+            limited + check_vec >= 0), "Decrease function is able to invert a synapse " \
+                                       "role"
+
+        # Assert the decrease function will turn 0 into 0 (it is the one that is
+        # actiavted on 0)
+        zero = self._syn_dec_func(np.array([0]))
+        assert zero[0] == 0, "Decrease function doesn't turn 0 to 0"
 
 
     def _init_sensory_input(self):
@@ -461,7 +543,7 @@ class BrainNN:
         net._layers = [[np.array(layer) for layer in popul] for popul in layers_as_list]
 
         # re-calculate the desired resolution
-        net._connections_max_res = net._determine_weights_res()
+        net._syns_max_res = net._determine_weights_res()
 
         return net
 
@@ -496,6 +578,10 @@ class BrainNN:
                 self._inject_to_last_popul[i]
         # Iterate
         self._iterate()
+
+        if not self._freeze:
+            self._update_weights()
+
         self.visualize()
 
 
@@ -535,6 +621,9 @@ class BrainNN:
             for i in range(len(popul_shots)):
                 popul_shots[i].fill(0)
                 self._prev_shots[popul_idx][i].fill(0)
+
+        # Zero the visualization
+        self._vis_counter = 0
 
 
     def set_sensory_input(self, arr):
@@ -620,10 +709,6 @@ class BrainNN:
                 self._change_in_layers[cur_popul_idx][
                     cur_layer_idx] -= cur_shots * cur_layer
 
-                # IINs Deduce voltage
-                INNs_idx = self._IINs_start_per_popul[cur_popul_idx]
-                cur_shots[INNs_idx:] *= -1
-
                 matrices_from_cur_layer = self._synapses_matrices[cur_popul_idx][
                     cur_layer_idx]
 
@@ -638,9 +723,6 @@ class BrainNN:
                 cur_layer += np.maximum(self._change_in_layers[cur_popul_idx][
                                             cur_layer_idx], -cur_layer)
                 self._change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
-
-        if not self._freeze:
-            self._update_weights()
 
 
     def _update_weights(self):
@@ -708,15 +790,19 @@ class BrainNN:
                 np.random.uniform(
                     size=(np.count_nonzero(neg_ones_idxs))) < self._syn_dec_prob)
 
-        weighted_synapses_matrix = np.multiply(shots_mat, cur_synapses_mat)
-        updated_mat = self._create_update_mat(weighted_synapses_matrix) + cur_synapses_mat
+        # abs so We'll decrease only according to the learning rule, which is shots_mat
+        weighted_synapses_matrix = np.multiply(shots_mat, np.abs(cur_synapses_mat))
+        # Now decreasing from negative is adding positive
+        addon_mat = self._create_update_mat(weighted_synapses_matrix) * np.sign(
+            cur_synapses_mat)
+        updated_mat = addon_mat + cur_synapses_mat
 
-        # Make sure no weight is negative
-        np.maximum(updated_mat, 0, updated_mat)
+        # NOTICE! We assume here that the synapses change functions can't change the
+        # weights sign, otherwise we would have zero what exceeded from the original value
 
         # Normalize the input synapses to each neuron
-        columns_sum_cur_mat, column_sum_updated_mat = cur_synapses_mat.sum(
-            axis=0), updated_mat.sum(axis=0)
+        columns_sum_cur_mat, column_sum_updated_mat = np.abs(cur_synapses_mat).sum(
+            axis=0), np.abs(updated_mat).sum(axis=0)
         # If the column sum is 0 then we will divide by 1 and still remain with 0's
         return updated_mat / np.where((columns_sum_cur_mat != 0) & (column_sum_updated_mat
                                                                     != 0),
@@ -757,7 +843,14 @@ class BrainNN:
                                                   self._default_visualize)
 
 
-    def _default_visualize(self, debug=False):
+    def visualize_idle(self):
+        if self.visualize is pass_func:
+            return
+        self.visualize()
+        cv2.waitKey()
+
+
+    def _default_visualize(self):
         """
         visualize the model according to it's current state and the visualization
         parameters chosen in the beginning.
@@ -779,9 +872,20 @@ class BrainNN:
         # Decrease the neuron size to keep the avoid cutting of the neurons
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
+        self._draw_whole_net(frame, h, line_thick, neuron_size, w)
+
+        if show_during_the_run:
+            cv2.imshow(self._vis_window_name, frame)
+            cv2.waitKey(1)
+
+        if record:
+            save_frame = (frame * 255).astype(np.uint8)
+            out.write(save_frame)
+
+
+    def _draw_whole_net(self, frame, h, line_thick, neuron_size, w, view_shots=True):
         # Each popul gets an equal part of the frame
         popul_gap = w // len(self._layers)
-
         for popul_idx, population_neurons in enumerate(self._layers):
             layers_num = len(population_neurons)
             layer_gap_y = h // layers_num
@@ -796,6 +900,8 @@ class BrainNN:
                                                    neuron_size,
                                                    neurons_gap, popul_gap, popul_idx)
                     shot_flag = self._current_shots[popul_idx][cur_layer_idx][neuron_idx]
+                    if not view_shots:
+                        shot_flag = False
 
                     # First draw connections to all other neurons
                     self._draw_connections_from_layer(cur_layer_idx, frame, h,
@@ -807,28 +913,17 @@ class BrainNN:
                     self._draw_neuron(frame, location, neuron / self._neurons_max_res,
                                       neuron_idx,
                                       neuron_size,
-                                      popul_idx)
-
-                    # In case of debugging, see each step
-                    if debug:
-                        cv2.imshow(self._vis_window_name, frame)
-                        cv2.waitKey(0)
-
-        if show_during_the_run:
-            cv2.imshow(self._vis_window_name, frame)
-            cv2.waitKey(1)
-
-        if record:
-            save_frame = (frame * 255).astype(np.uint8)
-            out.write(save_frame)
+                                      popul_idx, shot_flag)
 
 
     def _draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,
-                     popul_idx):
-        color = (neuron_draw_val, neuron_draw_val, neuron_draw_val)
-        cv2.circle(frame, location, neuron_size,
-                   color,
-                   thickness=-1)
+                     popul_idx, shot_flag=False):
+        if shot_flag:
+            color = (1, 0, 0)
+        else:
+            color = (neuron_draw_val, neuron_draw_val, neuron_draw_val)
+        cv2.circle(frame, location, neuron_size, color, thickness=-1)
+
         # Show the IINs by drawing a circle around them
         if neuron_idx >= self._IINs_start_per_popul[popul_idx]:
             cv2.circle(frame, location, neuron_size, (0, 0, 1), thickness=1)
@@ -881,12 +976,103 @@ class BrainNN:
                     if shot_flag:
                         cv2.line(frame, location, to_location,
                                  (1, 0, 0), line_thick)
+                    elif connections_strength < 0:
+                        cv2.line(frame, location, to_location,
+                                 (0,
+                                  0,
+                                  connections_strength /
+                                  self._syns_max_res[1]),
+                                 line_thick)
                     else:
                         cv2.line(frame, location, to_location,
-                                 (
-                                     0, connections_strength / self._connections_max_res,
-                                     0),
+                                 (0,
+                                  connections_strength / self._syns_max_res[0],
+                                  0),
                                  line_thick)
+
+
+    def _debug_visualize(self):
+        """
+        visualize the model, advancing by key press
+        :return:
+        """
+        frame = self._visualization_frame
+        h, w, _ = frame.shape
+
+        neuron_size = 5
+        line_thick = 1
+
+        # Decrease the neuron size to keep the avoid cutting of the neurons
+        w, h = w - 2 * neuron_size, h - 2 * neuron_size
+
+        self._draw_whole_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+
+        cv2.imshow(self._vis_window_name, frame)
+        cv2.waitKey()
+
+
+    def _light_visualize(self):
+        """
+        visualize the model, updates every shot and every few steps
+        :return:
+        """
+        frame = self._visualization_frame
+        h, w, _ = frame.shape
+        counter = self._vis_counter
+        self._vis_counter = (self._vis_counter + 1) % 1000
+
+        neuron_size = 5
+        line_thick = 1
+
+        # Decrease the neuron size to keep the avoid cutting of the neurons
+        w, h = w - 2 * neuron_size, h - 2 * neuron_size
+
+        if counter == 0:
+            self._draw_whole_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+        else:
+            self._draw_shots(_, frame, h, neuron_size, w)
+
+        cv2.imshow(self._vis_window_name, frame)
+        cv2.waitKey(1)
+
+
+    def _draw_shots(self, _, frame, h, neuron_size, w):
+        popul_gap = w // len(self._layers)
+        for popul_idx, population_neurons in enumerate(self._layers):
+            layers_num = len(population_neurons)
+            layer_gap_y = h // layers_num
+            layer_gap_x = popul_gap // layers_num
+
+            for cur_layer_idx, cur_layer in enumerate(population_neurons):
+                if not (self._current_shots[popul_idx][cur_layer_idx].any() or
+                        self._prev_shots[popul_idx][cur_layer_idx].any()):
+                    continue
+
+                neurons_gap = layer_gap_y // (len(cur_layer) + 1)
+
+                for neuron_idx, neuron in enumerate(cur_layer):
+                    shot_flag = self._current_shots[popul_idx][cur_layer_idx][
+                        neuron_idx]
+                    # If this neuron doesn't shoot and it didn't shot last round (and it
+                    # needs to be reset in the frame) don't draw it
+                    if not shot_flag:
+                        if not self._prev_shots[popul_idx][cur_layer_idx][neuron_idx]:
+                            continue
+
+                    location = self._calc_location(cur_layer_idx, layer_gap_x,
+                                                   layer_gap_y, neuron_idx,
+                                                   neuron_size,
+                                                   neurons_gap, popul_gap, popul_idx)
+
+                    # now draw the neuron
+                    self._draw_neuron(frame, location, 0,
+                                      neuron_idx,
+                                      neuron_size,
+                                      popul_idx, shot_flag)
+
+
+def pass_func():
+    pass
 
 
 def distance(i, j, row_n, col_n):
@@ -911,24 +1097,25 @@ def distance(i, j, row_n, col_n):
     # Get x location
     x_i, x_j = i, j
 
-    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i])
+    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i], ord=1)
 
 
 if __name__ == '__main__':
-    N = 100
-    nodes_details = [N, int(N / 4), int(N / 4), int(N / 5)]
-    IINs_details = [(3, 3), (3, 3), (3, 3), (1, 1)]
+    N = 5
+    nodes_details = [N, N, N - 1, N + 1]
+    IINs_details = [(3, 3), (3, 3, 4), (3, 3), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     spacial_args = (20, 20)
     feedback = True
-    configuration = {BrainNN.NODES_DETAILS: nodes_details,
-                     BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                     BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                     BrainNN.VISUALIZATION_FUNC_STR: 'No ',
-                     BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
-                     BrainNN.SHOOT_THRESHOLD: 100,
-                     BrainNN.SPACIAL_ARGS: spacial_args,
-                     BrainNN.FEEDBACK: feedback}
+    configuration = {
+        BrainNN.NODES_DETAILS: nodes_details,
+        BrainNN.IINS_PER_LAYER_NUM: IINs_details,
+        BrainNN.CONNECTIONS_MAT: inter_connections,
+        BrainNN.VISUALIZATION_FUNC_STR: 'No ',
+        BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
+        BrainNN.SHOOT_THRESHOLD: 100,
+        BrainNN.SPACIAL_ARGS: spacial_args
+    }
     brainNNmodel = BrainNN(configuration)
     brainNNmodel.visualize()
     cv2.waitKey()
