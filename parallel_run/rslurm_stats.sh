@@ -1,4 +1,4 @@
-SQUEUE_OUTPUT=$(squeue | grep galhar | sort -R)
+SQUEUE_OUTPUT=$(squeue | grep $USER | sort -R)
 echo "running jobs:"
 echo "$SQUEUE_OUTPUT" | wc -l | cat
 ID=$(echo ${SQUEUE_OUTPUT} | head -n1 | awk '{print $1;}')

@@ -19,16 +19,16 @@ def create_trainer(epoches=17):
     img_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
-    nodes_details = [img_len, 144, output_shape]
-    IINs_details = [(4,), (4,), (4,)]
+    nodes_details = [img_len, 144, 100, output_shape]
+    IINs_details = [(4,), (4,), (4,), (4,)]
     fc = [BrainNN.FC]
     kernel = 2
     stride = 1
     rf = [BrainNN.RF, [kernel, stride]]
-    conn_mat = [[fc, rf, None],
-                [None, fc, fc],
-                [None, None, fc],
-                ]
+    conn_mat = [[fc, rf, None, None],
+                [None, fc, fc, None],
+                [None, None, fc, fc],
+                [None, None, None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 2
@@ -43,7 +43,8 @@ def create_trainer(epoches=17):
 
     net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=14)
+    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=8, sharp=True,
+                                 inc_prob=1,dec_prob=0.8)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
