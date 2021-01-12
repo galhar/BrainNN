@@ -19,16 +19,15 @@ def create_trainer(epoches=17):
     img_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
-    nodes_details = [img_len, 144, 100, output_shape]
-    IINs_details = [(4,), (4,), (4,), (4,)]
     fc = [BrainNN.FC]
     kernel = 2
     stride = 1
     rf = [BrainNN.RF, [kernel, stride]]
-    conn_mat = [[fc, rf, None, None],
-                [None, fc, fc, None],
-                [None, None, fc, fc],
-                [None, None, None, fc]]
+
+    nodes_details = [img_len, 144]
+    IINs_details = [(4,), (4,)]
+    conn_mat = [[fc, rf],
+                [None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 2

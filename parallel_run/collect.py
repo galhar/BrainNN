@@ -24,6 +24,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # iterate over all the saved data and combine it
+    processed = []
     combined_data = []
     print("Collecting...")
     for filename in os.listdir(SAVE_PATH):
@@ -31,10 +32,12 @@ if __name__ == '__main__':
         if args.start_idx <= idx <= args.end_idx:
             print("Collect data %s" % filename)
             combined_data.append(load_json(SAVE_PATH + filename))
+            processed.append(filename)
 
     print("Processing merged data...")
     average_over_nets(None, load=combined_data)
     if args.del_tmp:
         for filename in os.listdir(SAVE_PATH):
-            print("Cleaning tmp...")
-            os.remove(SAVE_PATH + filename)
+            if filename in processed:
+                print("Cleaning tmp...")
+                os.remove(SAVE_PATH + filename)
