@@ -113,7 +113,7 @@ class BrainNN:
             'default': self._default_visualize,
             'light': self._light_visualize,
             'debug': self._debug_visualize,
-            'None': (lambda: None)
+            'None': pass_func
         }
         vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
         self._visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
@@ -140,10 +140,8 @@ class BrainNN:
         self._init_model()
         self._init_sensory_input()
 
-        # Those should be the max expected value of the connections and of the neurons.
-        # It's the max value from which every higher value will be with the same color
-        # in the visualization
-        self._connections_max_res = self._determine_weights_res()
+        # Determine max value for visualization [pos_max,neg_max]
+        self._syns_max_res = self._determine_weights_res()
         self._neurons_max_res = self._thresh
 
 
@@ -155,16 +153,18 @@ class BrainNN:
 
 
     def _determine_weights_res(self):
-        max_value = 0.
+        max_value,min_value = 0.,0.
         # Iterate only on synapses from the first layer, assuming it represents well
         # all the others
         for mat, idx in self._synapses_matrices[0][0]:
-            mat_max = np.max(np.abs(mat))
+            mat_max = np.max(mat)
+            mat_min = np.min(mat)
             max_value = mat_max if mat_max > max_value else max_value
+            min_value = mat_min if mat_min < min_value else min_value
 
         # That's not accurate! It's not that a weights can only increase by factor of 2,
         # But that's the approximation
-        return max_value *2
+        return max_value * 2, min_value * 2
 
 
     def _init_model(self):
@@ -280,7 +280,7 @@ class BrainNN:
             src_extory_num = self._IINs_start_per_popul[popul_idx]
             dst_extory_num = self._IINs_start_per_popul[popul_idx_to_connect]
 
-            self.create_RF_synapses(mean, std, k_size, stride, src_neurons_num,
+            syn_mat = self.create_RF_synapses(mean, std, k_size, stride, src_neurons_num,
                                     src_extory_num,
                                     dst_neurons_num, dst_extory_num)
 
@@ -543,7 +543,7 @@ class BrainNN:
         net._layers = [[np.array(layer) for layer in popul] for popul in layers_as_list]
 
         # re-calculate the desired resolution
-        net._connections_max_res = net._determine_weights_res()
+        net._syns_max_res = net._determine_weights_res()
 
         return net
 
@@ -844,6 +844,8 @@ class BrainNN:
 
 
     def visualize_idle(self):
+        if self.visualize is pass_func:
+            return
         self.visualize()
         cv2.waitKey()
 
@@ -978,13 +980,13 @@ class BrainNN:
                         cv2.line(frame, location, to_location,
                                  (0,
                                   0,
-                                  np.abs(connections_strength) /
-                                  self._connections_max_res),
+                                  connections_strength /
+                                  self._syns_max_res[1]),
                                  line_thick)
                     else:
                         cv2.line(frame, location, to_location,
                                  (0,
-                                  connections_strength / self._connections_max_res,
+                                  connections_strength / self._syns_max_res[0],
                                   0),
                                  line_thick)
 
@@ -1069,6 +1071,10 @@ class BrainNN:
                                       popul_idx, shot_flag)
 
 
+def pass_func():
+    pass
+
+
 def distance(i, j, row_n, col_n):
     """
     calculate the distance between the location i and the location j in the matrix,
@@ -1096,7 +1102,7 @@ def distance(i, j, row_n, col_n):
 
 if __name__ == '__main__':
     N = 5
-    nodes_details = [N, N, N-1, N+1]
+    nodes_details = [N, N, N - 1, N + 1]
     IINs_details = [(3, 3), (3, 3, 4), (3, 3), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
     spacial_args = (20, 20)

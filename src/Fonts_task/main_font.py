@@ -32,7 +32,7 @@ def create_trainer(epoches=17):
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 2
-    vis_str = 'light'
+    vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
@@ -52,7 +52,7 @@ def fonts_trainer_evaluation(epoches=6):
     print("[*] Creating the trainer")
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
-        TEST_DIR, batched=True)))
+        TEST_DIR, batched=True),vis_last_ep=True))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
