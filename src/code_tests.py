@@ -8,7 +8,7 @@ import imutils
 import cProfile
 import pstats
 import matplotlib.pyplot as plt
-from src.brainNN import distance
+from src.brainNN import distance, BrainNN
 from src.binary_encoding_task.main_binary import trainer_train
 
 
@@ -432,5 +432,32 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
     plt.show()
 
 
+def compare_models_synapses():
+    dir = "binary_encoding_task/"
+    name1 = "prev_version_save.json"
+    name2 = "experiment_save.json"
+    syns1 = BrainNN.load_model(name=dir+name1)._synapses_matrices
+    syns2 = BrainNN.load_model(name=dir+name2)._synapses_matrices
+
+    for pop_i in range(len(syns1)):
+        for l_i in range(len(syns1[pop_i])):
+            for s_i in range(len(syns1[pop_i][l_i])):
+                m1,idx1 = syns1[pop_i][l_i][s_i]
+                m2,idx2 = syns2[pop_i][l_i][s_i]
+                fig = plt.figure()
+                fig.suptitle("")
+
+                ax1 = fig.add_subplot(121)
+                plt.imshow(m1)
+                ax1.title.set_text(f"1 - {idx1}")
+
+                ax1 = fig.add_subplot(122)
+                plt.imshow(m2)
+                ax1.title.set_text(f"2 - {idx2}")
+                plt.show()
+                input()
+
+
 if __name__ == '__main__':
-    check_RF_layers(5, stride=3, dst_n=64)
+    # check_RF_layers(5, stride=3, dst_n=64)
+    compare_models_synapses()

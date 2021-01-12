@@ -2,8 +2,8 @@
 # Date: 17/11/2020
 from src.binary_encoding_task.binary_prediction import create_binary_input_generator, N, \
     evaluate_binary_representation_nn
-from src.binary_encoding_task.main_binary import trainer_train, script_training, \
-    trainer_evaluation, one_one_evaluation, output_distribution_query
+from src.binary_encoding_task.main_binary import trainer_evaluation, \
+    one_one_evaluation, output_distribution_query
 from src.Identity_task.main_identity import identity_evaluation
 from src.utils.general_utils import save_json, load_json
 
@@ -242,4 +242,4 @@ if __name__ == '__main__':
     load_path = '  records 12_27_20 00_30.json'
     check_func = trainer_evaluation
     setattr(check_func, 'title', 'Identity, One layer each popul')
-    average_over_nets(check_func, iterations=10)#, scatter=True, load=load_path)
+    average_over_nets(check_func, iterations=20)#, scatter=True, load=load_path)

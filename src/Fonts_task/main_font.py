@@ -8,7 +8,6 @@ from src.utils.general_utils import get_pparent_dir
 
 import os
 
-
 pparentdir = get_pparent_dir(__file__)
 
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
@@ -20,25 +19,31 @@ def create_trainer(epoches=17):
     img_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
-    nodes_details = [img_len, 140, 100, output_shape]
-    IINs_details = [(4, ), (4, ), (4, ), (4, )]
-    inter_connections = [(False, ), (True, ), (False, ), (False, )]
+    nodes_details = [img_len, 144, 100, output_shape]
+    IINs_details = [(4,), (4,), (4,), (4,)]
+    fc = [BrainNN.FC]
+    kernel = 2
+    stride = 1
+    rf = [BrainNN.RF, [kernel, stride]]
+    conn_mat = [[fc, rf, None, None],
+                [None, fc, fc, None],
+                [None, None, fc, fc],
+                [None, None, None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
-    feedback = False
     iin_factor = 2
-    vis_str = 'None '
+    vis_str = 'light'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
+                          BrainNN.CONNECTIONS_MAT: conn_mat,
                           BrainNN.SPACIAL_ARGS: img_dim,
                           BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
-                          BrainNN.FEEDBACK: feedback,
                           BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultOptimizer(net=net, epoches=epoches, sample_reps=14)
+    net.visualize_idle()
+    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=14)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 

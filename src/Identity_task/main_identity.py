@@ -3,7 +3,7 @@
 from src.Identity_task.identity_prediction import IdentityDataLoader, N
 from src.brainNN import BrainNN
 from src.hooks import ClassesEvalHook, SaveByEvalHook
-from src.utils.train_utils import DefaultOptimizer, DefaultSymbolicOptimizer, Trainer
+from src.utils.train_utils import DefaultOptimizer, Trainer
 
 import os
 import sys
@@ -22,19 +22,16 @@ def create_trainer(epoches=17):
     inp_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
-    nodes_details = [inp_len, output_shape]
+    nodes_details = [inp_len,output_shape]
     IINs_details = [(4, 4), (1, 4)]
-    inter_connections = [(False, False), (False, False)]
-    feedback = False
-    vis_str = 'light'
+    vis_str = 'None'#light'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
-                          BrainNN.INTER_CONNECTIONS_PER_LAYER: inter_connections,
-                          BrainNN.FEEDBACK: feedback,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultSymbolicOptimizer(net=net, epoches=epoches, sample_reps=6)
+    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=14, sharp=True,
+                                 dec_prob=1, inc_prob=1)
     trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
@@ -42,8 +39,10 @@ def create_trainer(epoches=17):
 def identity_evaluation(epoches=6):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(
-        lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=True)))
+        lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=True),
+                                        vis_last_ep=False))
     trainer.train()
+
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
