@@ -86,8 +86,8 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        SYNAPSE_INCREASE_FUNC: lambda weights: np.minimum(weights / 2, 0.04),
-        SYNAPSE_DECREASE_FUNC: lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
+        SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
+        SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
         VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],
@@ -117,6 +117,7 @@ class BrainNN:
         self._visualize_dict = {
             'default': self._default_visualize,
             'light': self._light_visualize,
+            'debug': self._debug_visualize,
             'None': (lambda: None)
         }
         vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
@@ -141,7 +142,6 @@ class BrainNN:
         # Initialize records structures
         self._sensory_input = None
         self._inject_to_last_popul = None
-        self._symbolic_shots = None
         self._init_model()
         self._init_sensory_input()
 
@@ -470,9 +470,6 @@ class BrainNN:
             np.zeros(last_popul_excitatory_neurons_num) for i
             in range(len(self._layers[-1]))]
 
-        # Initialize no symbolic shots, None for each layer in the last popul
-        self._symbolic_shots = [None for i in range(len(self._current_shots[-1]))]
-
 
     def save_state(self, name=None, overwrite=True):
         """
@@ -574,28 +571,16 @@ class BrainNN:
         """
         # Update the input and the injection to the last layer
         IINs_start_inp_popul = self._IINs_start_per_popul[0]
-        self._layers[0][0][:IINs_start_inp_popul] += self._sensory_input
-
         IINs_start_out_popul = self._IINs_start_per_popul[-1]
+        self._layers[0][0][:IINs_start_inp_popul] += self._sensory_input
         for i, layer in enumerate(self._layers[-1]):
-            self._layers[-1][i][:IINs_start_out_popul] += self._inject_to_last_popul[i]
-
-        # Iterate:
+            self._layers[-1][i][:IINs_start_out_popul] += \
+                self._inject_to_last_popul[i]
+        # Iterate
         self._iterate()
 
-        # Change to symbolic shots vector, for weight updating process
-        last_pop_IIN_start = self._IINs_start_per_popul[-1]
-        tmp_cur_shots_last_popul = self._current_shots[-1].copy()
-        for i in range(len(self._symbolic_shots)):
-            if self._symbolic_shots[i] is not None:
-                self._current_shots[-1][i][:last_pop_IIN_start] = self._symbolic_shots[i]
-
-        # Update weights
         if not self._freeze:
             self._update_weights()
-
-        # Change back to the real shots vector, after weight updating
-        self._current_shots[-1] = tmp_cur_shots_last_popul
 
         self.visualize()
 
@@ -631,15 +616,14 @@ class BrainNN:
         for i in range(len(self._inject_to_last_popul)):
             self._inject_to_last_popul[i].fill(0)
 
-        # Zero the symbolic shots
-        for i in range(len(self._symbolic_shots)):
-            self._symbolic_shots[i] = None
-
         # Zero the current and previous shots
         for popul_idx, popul_shots in enumerate(self._current_shots):
             for i in range(len(popul_shots)):
                 popul_shots[i].fill(0)
                 self._prev_shots[popul_idx][i].fill(0)
+
+        # Zero the visualization
+        self._vis_counter = 0
 
 
     def set_sensory_input(self, arr):
@@ -676,25 +660,6 @@ class BrainNN:
                     raise ValueError("inject to last popult during training with wrong "
                                      "dimension!")
                 self._inject_to_last_popul[inject_arr_idx] = arr_list[inject_arr_idx]
-
-
-    def set_symbolic_shots(self, symb_shots):
-        # For None
-        if symb_shots is None:
-            return
-
-        # Make sure all the dimension are right
-        IINS_start = self._IINs_start_per_popul[-1]
-        if len(symb_shots) == len(self._current_shots[-1]):
-            self._symbolic_shots = symb_shots
-
-            for symb_arr_idx, symb_arr in enumerate(symb_shots):
-                # Allow not to inject to a specific layer
-                if symb_arr is None:
-                    continue
-                if symb_arr.shape[0] != IINS_start:
-                    raise ValueError(
-                        "Symbolic shots during training with wrong dimension!")
 
 
     def get_shot_threshold(self):
@@ -900,7 +865,7 @@ class BrainNN:
         # Decrease the neuron size to keep the avoid cutting of the neurons
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
-        self._draw_net(frame, h, line_thick, neuron_size, w)
+        self._draw_whole_net(frame, h, line_thick, neuron_size, w)
 
         if show_during_the_run:
             cv2.imshow(self._vis_window_name, frame)
@@ -911,7 +876,7 @@ class BrainNN:
             out.write(save_frame)
 
 
-    def _draw_net(self, frame, h, line_thick, neuron_size, w, view_shots=True):
+    def _draw_whole_net(self, frame, h, line_thick, neuron_size, w, view_shots=True):
         # Each popul gets an equal part of the frame
         popul_gap = w // len(self._layers)
         for popul_idx, population_neurons in enumerate(self._layers):
@@ -941,7 +906,7 @@ class BrainNN:
                     self._draw_neuron(frame, location, neuron / self._neurons_max_res,
                                       neuron_idx,
                                       neuron_size,
-                                      popul_idx)
+                                      popul_idx, shot_flag)
 
 
     def _draw_neuron(self, frame, location, neuron_draw_val, neuron_idx, neuron_size,
@@ -1019,6 +984,26 @@ class BrainNN:
                                  line_thick)
 
 
+    def _debug_visualize(self):
+        """
+        visualize the model, advancing by key press
+        :return:
+        """
+        frame = self._visualization_frame
+        h, w, _ = frame.shape
+
+        neuron_size = 5
+        line_thick = 1
+
+        # Decrease the neuron size to keep the avoid cutting of the neurons
+        w, h = w - 2 * neuron_size, h - 2 * neuron_size
+
+        self._draw_whole_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+
+        cv2.imshow(self._vis_window_name, frame)
+        cv2.waitKey()
+
+
     def _light_visualize(self):
         """
         visualize the model, updates every shot and every few steps
@@ -1036,7 +1021,7 @@ class BrainNN:
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
         if counter == 0:
-            self._draw_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+            self._draw_whole_net(frame, h, line_thick, neuron_size, w, view_shots=False)
         else:
             self._draw_shots(_, frame, h, neuron_size, w)
 
