@@ -86,8 +86,9 @@ class BrainNN:
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
         SYNAPSE_MEMORY_FACTOR: 0.6,
-        SYNAPSE_INCREASE_FUNC: lambda weights: 1 / (weights + 1),
-        SYNAPSE_DECREASE_FUNC: lambda neg_weights: neg_weights / 2,
+        SYNAPSE_INCREASE_FUNC: lambda weights: np.minimum(weights / 2, 0.04,
+                                                          np.exp(-weights)),
+        SYNAPSE_DECREASE_FUNC: lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
         VISUALIZATION_FUNC_STR: 'None',
         # [0] is width, [1] is height
         VISUALIZATION_SIZE: [700, 1300],

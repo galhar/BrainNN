@@ -201,7 +201,8 @@ class DefaultOptimizer(OptimizerBase):
 
     def __init__(self, net, sample_reps, epochs, sharp=False, inc_prob=0.7,
                  dec_prob=0.2):
-        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04),
+        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04,
+                                                                     np.exp(-weights)),
                                lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
                                inc_prob, dec_prob, sample_reps, epochs)
 
@@ -302,6 +303,3 @@ class Trainer:
             print(f"Finished epoch {ep}")
             for h in self._hooks:
                 h.after_epoch()
-
-
-

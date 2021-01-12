@@ -87,7 +87,7 @@ class ClassesEvalHook(HookBase):
 
 
     def __init__(self, trainer, data_loader, req_shots_num=5, noise_std=0,
-                 vis_last_ep=True):
+                 vis_last_ep=False):
         """
 
         :param trainer:
