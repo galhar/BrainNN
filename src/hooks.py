@@ -134,6 +134,7 @@ class ClassesEvalHook(HookBase):
         # Save to trainer history
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
+        print("Mean accuracy:", mean_acc)
         self._ep_idx += 1
         self._net.unfreeze()
 

@@ -459,5 +459,5 @@ def compare_models_synapses():
 
 
 if __name__ == '__main__':
-    # check_RF_layers(5, stride=3, dst_n=64)
-    compare_models_synapses()
+    check_RF_layers(5, stride=3, dst_n=64)
+    # compare_models_synapses()

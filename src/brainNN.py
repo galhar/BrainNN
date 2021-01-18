@@ -24,6 +24,8 @@ class BrainNN:
                               ' inner connections in the same way, and make the nodes ' \
                               'connections stronger by this factor. in (1,inf]'
     IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
+    INTO_IINS_STRENGTH_FACTOR = 'Inter-layer connections from exitatory into the IINs ' \
+                                'will be stronger by this factor'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
     SPACIAL_ARGS = 'should be only changed in case of images. in that case insert ' \
                    '(<rows_num>,<columns_num>)'
@@ -76,6 +78,7 @@ class BrainNN:
         # Should be lower than 1 if the synapses mean is lower than 1!
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
+        INTO_IINS_STRENGTH_FACTOR: 4,
         SHOOT_THRESHOLD: 40,
         SPACIAL_ARGS: (1, 1),
         SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
@@ -153,7 +156,7 @@ class BrainNN:
 
 
     def _determine_weights_res(self):
-        max_value,min_value = 0.,0.
+        max_value, min_value = 0., 0.
         # Iterate only on synapses from the first layer, assuming it represents well
         # all the others
         for mat, idx in self._synapses_matrices[0][0]:
@@ -208,6 +211,7 @@ class BrainNN:
         mean = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN]
         std = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
         IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
+        into_IINs_factor = self._conf_args[BrainNN.INTO_IINS_STRENGTH_FACTOR]
 
         # This determines for each layer if it will have inter-connections
         conn_mat = self._conf_args[BrainNN.CONNECTIONS_MAT]
@@ -253,12 +257,21 @@ class BrainNN:
                             layer_list.append([syn_mat, idxs])
                             normalize_vec += np.abs(layer_list[-1][0]).sum(axis=1)
                 # The IINs might be stronger than the excitatory
-                normalize_vec[self._IINs_start_per_popul[popul_idx]:] /= IINs_factor
+                iins_start = self._IINs_start_per_popul[popul_idx]
+                normalize_vec[iins_start:] /= IINs_factor
 
                 # Now normalize the output from each neuron as explained above the loop
                 for i in range(len(layer_list)):
-                    mat = layer_list[i][0]
-                    layer_list[i][0] = self._thresh * mat / normalize_vec[:, np.newaxis]
+                    mat, idxs = layer_list[i]
+                    norm_mat = np.zeros_like(mat) + normalize_vec[:, np.newaxis]
+
+                    if idxs[0] == popul_idx and idxs[1] == cur_layer_idx:
+                        # Inter-layer conns to IINs are stronger, doesn't count
+                        # material in the net and therefore it happens here and not in
+                        # layer creation. Strengthen output of exctory into iins
+                        norm_mat[:iins_start, iins_start:] /= into_IINs_factor
+
+                    layer_list[i][0] = self._thresh * mat / norm_mat
 
 
     def _create_connections_between_2_layers(self, src_neurons_num,
@@ -281,8 +294,8 @@ class BrainNN:
             dst_extory_num = self._IINs_start_per_popul[popul_idx_to_connect]
 
             syn_mat = self.create_RF_synapses(mean, std, k_size, stride, src_neurons_num,
-                                    src_extory_num,
-                                    dst_neurons_num, dst_extory_num)
+                                              src_extory_num,
+                                              dst_neurons_num, dst_extory_num)
 
         if syn_type == BrainNN.FC or popul_idx_to_connect == popul_idx:
             syn_mat = self._create_FC_synapses(cur_layer_idx, dst_neurons_num,
@@ -319,6 +332,8 @@ class BrainNN:
 
         # Prevent IINs of one layer to shoot to another
         syn_mat[extory_num:, :] = 0
+        # Prevent exitatory of one layer to shoot into another's IINs
+        syn_mat[:, self._IINs_start_per_popul[popul_idx_to_connect]:] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
@@ -756,7 +771,7 @@ class BrainNN:
                         # previous shots. Above 0.5 will count as it shot, bellow and
                         # equal
                         # will count as it didn't shot.
-                        shots_matrix = np.outer(2 * (cur_layer_prev_shots > 0.5) - 1,
+                        shots_matrix = np.outer(2 * (cur_layer_prev_shots > 0.3) - 1,
                                                 dst_layer_cur_shots)
                         # I'm afraid it would be problematic so I add the assertion here
                         assert shots_matrix.shape == (cur_layer_prev_shots.shape[0],
