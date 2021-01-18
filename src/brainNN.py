@@ -74,7 +74,7 @@ class BrainNN:
         CONNECTIONS_MAT: [[FC, FC, 0], [0, FC, FC], [0, FC, FC]],
         # This might be connected to " WEIGHTS_SUM_INTO_NEURON "
         SYNAPSES_INITIALIZE_MEAN: 5,
-        SYNAPSES_INITIALIZE_STD: 0.15,
+        SYNAPSES_INITIALIZE_STD: 0.1,
         # Should be lower than 1 if the synapses mean is lower than 1!
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
@@ -373,8 +373,9 @@ class BrainNN:
         syn_mat = np.full((src_n_num, dst_n_num),
                           mean / 4, dtype=np.float64)
         syn_mat += np.random.normal(0, std, (src_n_num, dst_n_num))
-        # Prevent src IINs to shoot into dst
+        # Prevent src IINs to shoot into dst, and src extory into dst IINs
         syn_mat[src_extory_num:, :] = 0
+        syn_mat[:src_extory_num, dst_extory_num:] = 0
 
         rows, cols = self._conf_args[BrainNN.SPACIAL_ARGS]
 
