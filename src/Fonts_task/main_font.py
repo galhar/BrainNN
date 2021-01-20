@@ -20,39 +20,42 @@ def create_trainer(epoches=17):
     output_shape = len(data_loader.classes_neurons)
 
     fc = [BrainNN.FC]
-    kernel = 2
+    kernel = 3
     stride = 1
     rf = [BrainNN.RF, [kernel, stride]]
 
-    nodes_details = [img_len, 144]
-    IINs_details = [(4,), (4,)]
-    conn_mat = [[fc, rf],
-                [None, fc]]
+    nodes_details = [img_len, 144, output_shape]
+    IINs_details = [(4,), (4,), (4,)]
+    conn_mat = [[fc, rf, None],
+                [None, fc, fc],
+                [None, None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
-    iin_factor = 2
+    iin_factor = 20
+    into_iins_factor = 1
     vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
                           BrainNN.SPACIAL_ARGS: img_dim,
                           BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
-                          BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
+                          # BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
+                          BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=8, sharp=True,
-                                 inc_prob=1,dec_prob=0.8)
-    trainer = Trainer(net, data_loader, optimizer, verbose=True)
+                                 inc_prob=1, dec_prob=0.9)
+    trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
 
-def fonts_trainer_evaluation(epoches=6):
+def fonts_trainer_evaluation(epoches=10):
     print("[*] Creating the trainer")
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
-        TEST_DIR, batched=True),vis_last_ep=False))
+        TEST_DIR, batched=True), vis_last_ep=False))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
@@ -60,4 +63,4 @@ def fonts_trainer_evaluation(epoches=6):
 
 
 if __name__ == '__main__':
-    print(fonts_trainer_evaluation(epoches=4))
+    print(fonts_trainer_evaluation(epoches=7))
