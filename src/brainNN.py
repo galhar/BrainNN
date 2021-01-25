@@ -891,7 +891,7 @@ class BrainNN:
         x = [i for i, shot_idxs in enumerate(self.history) for j in range(len(shot_idxs))]
         y = [val for shot_idxs in self.history for val in shot_idxs]
         c = ["#FF0000" if val in self._iins_idxs else "#000000" for val in y]
-        plt.scatter(x, y, c=c)
+        plt.scatter(x, y, c=c, s=1)
         plt.xlabel("Time Steps")
         plt.ylabel("Neuron Idx")
         plt.show()
