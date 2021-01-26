@@ -32,7 +32,7 @@ def create_trainer(epoches=17):
     net = BrainNN(configuration_args)
     optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=14, sharp=True,
                                  dec_prob=1, inc_prob=1)
-    trainer = Trainer(net, data_loader, optimizer, verbose=False)
+    trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
 
