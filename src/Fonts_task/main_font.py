@@ -21,10 +21,10 @@ def create_trainer(epoches=17):
 
     fc = [BrainNN.FC]
     kernel = 5
-    stride = 5
+    stride = 2
     rf = [BrainNN.RF, [kernel, stride]]
 
-    nodes_details = [img_len, 16, output_shape]
+    nodes_details = [img_len, 100, int(output_shape * 3 / 2)]
     IINs_details = [(4,), (4,), (4,)]
     conn_mat = [[fc, rf, None],
                 [None, fc, fc],
@@ -39,15 +39,15 @@ def create_trainer(epoches=17):
                           BrainNN.CONNECTIONS_MAT: conn_mat,
                           BrainNN.SPACIAL_ARGS: img_dim,
                           BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
-                          # BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
+                          BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
                           BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=8, sharp=True,
+    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=11, sharp=True,
                                  inc_prob=1, dec_prob=0.9)
-    trainer = Trainer(net, data_loader, optimizer, verbose=True)
+    trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
 

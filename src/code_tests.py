@@ -417,8 +417,8 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
 
     for i in range(dst_l_IIN_start):
         if i < dst_l_num:
-            continue
-            # pass
+            # continue
+            pass
         neurons_syn_vec = syn_mat[:, i]
 
         neuron_syns = neurons_syn_vec[:src_l_IIN_start].reshape((rows, cols))
@@ -459,5 +459,5 @@ def compare_models_synapses():
 
 
 if __name__ == '__main__':
-    check_RF_layers(5, stride=3, dst_n=64)
+    check_RF_layers(10, stride=3, dst_n=64)
     # compare_models_synapses()

@@ -1052,7 +1052,7 @@ class BrainNN:
         # Decrease the neuron size to keep the avoid cutting of the neurons
         w, h = w - 2 * neuron_size, h - 2 * neuron_size
 
-        self._draw_whole_net(frame, h, line_thick, neuron_size, w, view_shots=False)
+        self._draw_whole_net(frame, h, line_thick, neuron_size, w)
 
         cv2.imshow(self._vis_window_name, frame)
         cv2.waitKey()

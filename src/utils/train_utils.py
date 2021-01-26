@@ -201,10 +201,10 @@ class DefaultOptimizer(OptimizerBase):
 
     def __init__(self, net, sample_reps, epochs, sharp=False, inc_prob=0.7,
                  dec_prob=0.2):
-        OptimizerBase.__init__(self, net, lambda weights: np.minimum(weights / 2, 0.04,
-                                                                     np.exp(-weights)),
-                               lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
-                               inc_prob, dec_prob, sample_reps, epochs)
+        inc_func = lambda weights: np.minimum(weights / 10, np.exp(-weights))
+        dec_func = lambda neg_weights: np.maximum(neg_weights / 10, -0.3)
+        OptimizerBase.__init__(self, net, inc_func, dec_func, inc_prob, dec_prob,
+                               sample_reps, epochs)
 
         # inj_arr size of last_popul. Although we only use the first layer
         last_popul = self._net.get_output(whole_popul=True)
