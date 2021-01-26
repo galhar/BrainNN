@@ -20,11 +20,11 @@ def create_trainer(epoches=17):
     output_shape = len(data_loader.classes_neurons)
 
     fc = [BrainNN.FC]
-    kernel = 3
-    stride = 1
+    kernel = 5
+    stride = 5
     rf = [BrainNN.RF, [kernel, stride]]
 
-    nodes_details = [img_len, 144, output_shape]
+    nodes_details = [img_len, 16, output_shape]
     IINs_details = [(4,), (4,), (4,)]
     conn_mat = [[fc, rf, None],
                 [None, fc, fc],
@@ -47,7 +47,7 @@ def create_trainer(epoches=17):
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=8, sharp=True,
                                  inc_prob=1, dec_prob=0.9)
-    trainer = Trainer(net, data_loader, optimizer, verbose=False)
+    trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
 

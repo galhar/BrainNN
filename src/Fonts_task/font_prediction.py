@@ -6,7 +6,7 @@ import numpy as np
 
 from src.utils.train_utils import ClassesDataLoader
 
-IMG_SIZE = 12
+IMG_SIZE = 20
 
 
 def flatten_to_image(flat_img):
