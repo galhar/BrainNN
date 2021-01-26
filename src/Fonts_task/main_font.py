@@ -24,11 +24,12 @@ def create_trainer(epoches=17):
     stride = 2
     rf = [BrainNN.RF, [kernel, stride]]
 
-    nodes_details = [img_len, 100, int(output_shape * 3 / 2)]
-    IINs_details = [(4,), (4,), (4,)]
-    conn_mat = [[fc, rf, None],
-                [None, fc, fc],
-                [None, None, fc]]
+    nodes_details = [img_len, 100, int(output_shape * 3 / 2), output_shape]
+    IINs_details = [(4,), (4,), (4,), (4,)]
+    conn_mat = [[fc, rf, None, None],
+                [None, fc, fc, None],
+                [None, None, fc, fc],
+                [None, None, None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 20
@@ -47,7 +48,7 @@ def create_trainer(epoches=17):
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=11, sharp=True,
                                  inc_prob=1, dec_prob=0.9)
-    trainer = Trainer(net, data_loader, optimizer, verbose=False)
+    trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
 
@@ -55,7 +56,7 @@ def fonts_trainer_evaluation(epoches=10):
     print("[*] Creating the trainer")
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
-        TEST_DIR, batched=True), vis_last_ep=False))
+        TEST_DIR, batched=True), vis_last_ep=True))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
