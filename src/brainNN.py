@@ -3,7 +3,7 @@
 import numpy as np
 import cv2
 import os.path
-import dill
+import matplotlib.pyplot as plt
 from src.utils.general_utils import save_json, load_json
 
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
@@ -142,6 +142,7 @@ class BrainNN:
         self._inject_to_last_popul = None
         self._init_model()
         self._init_sensory_input()
+        self.history = []
 
         # Determine max value for visualization [pos_max,neg_max]
         self._syns_max_res = self._determine_weights_res()
@@ -197,6 +198,8 @@ class BrainNN:
         self._prev_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
         self._current_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
 
+        self._init_iins_idxs()
+
         self._create_connections()
 
 
@@ -204,6 +207,16 @@ class BrainNN:
     def _create_layers_np_arrays(neurons_per_layer):
         return [[np.zeros(population_neurons[i]) for i in range(len(
             population_neurons))] for population_neurons in neurons_per_layer]
+
+
+    def _init_iins_idxs(self):
+        idxs_sum = 0
+        self._iins_idxs = []
+        for p_i, p_n in enumerate(self._neurons_per_layer):
+            for l_n in p_n:
+                self._iins_idxs[0:0] = [i + idxs_sum for i in
+                                        range(self._IINs_start_per_popul[p_i], l_n)]
+                idxs_sum += l_n
 
 
     def _create_connections(self):
@@ -714,11 +727,17 @@ class BrainNN:
         TODO: implement more efficient
         :return:
         """
+        self.history.append([])
+        idxs_sum = 0
+
         for cur_popul_idx, cur_popul in enumerate(self._layers):
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
                 self._current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >
                                                                      self._thresh) * 1
                 cur_shots = self._current_shots[cur_popul_idx][cur_layer_idx]
+                cur_shots_idxs = np.nonzero(cur_shots)[0]
+                if cur_shots_idxs.any():
+                    self.history[-1][0:0] = list(cur_shots_idxs + idxs_sum)
 
                 # Deduce from those who fired
                 # Counting on that it resets after each time stamp
@@ -731,6 +750,8 @@ class BrainNN:
                 for matrix, dst_idxs in matrices_from_cur_layer:
                     self._change_in_layers[dst_idxs[0]][
                         dst_idxs[1]] += cur_shots @ matrix
+
+                idxs_sum += len(cur_layer)
 
         # Update all layers and reset the "change_in_layers" help array
         for cur_popul_idx, cur_popul in enumerate(self._layers):
@@ -864,6 +885,16 @@ class BrainNN:
             return
         self.visualize()
         cv2.waitKey()
+
+
+    def plot_history(self):
+        x = [i for i, shot_idxs in enumerate(self.history) for j in range(len(shot_idxs))]
+        y = [val for shot_idxs in self.history for val in shot_idxs]
+        c = ["#FF0000" if val in self._iins_idxs else "#000000" for val in y]
+        plt.scatter(x, y, c=c)
+        plt.xlabel("Time Steps")
+        plt.ylabel("Neuron Idx")
+        plt.show()
 
 
     def _default_visualize(self):
