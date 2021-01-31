@@ -16,6 +16,21 @@ def get_rep(i, n):
     return rep
 
 
+def get_paired_perm_rep(i, n):
+    rep = np.zeros((2 * n,))
+    rep[(i + 3) % (2 * n)] = 30
+    rep[(n + i + 3) % (2 * n)] = 30
+    return rep
+
+
+def get_tripled_perm_rep(i, n):
+    rep = np.zeros((2 * n,))
+    rep[(i + 3) % (2 * n)] = 30
+    rep[(n + i + 3) % (2 * n)] = 30
+    rep[(2 * (i + 3)) % (2 * n)] = 30
+    return rep
+
+
 class IdentityDataLoader(ClassesDataLoader):
 
     def __init__(self, batched=False, shuffle=True, noise_std=0):

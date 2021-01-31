@@ -1,16 +1,16 @@
 # Writer: Gal Harari
 # Date: 14/12/2020
 import os
-import cv2 as cv
+import cv2
 import numpy as np
 
 from src.utils.train_utils import ClassesDataLoader
 
-IMG_SIZE = 20
+IMG_SIZE = 12
 
 
 def flatten_to_image(flat_img):
-    return np.reshape(flat_img, )
+    return flat_img.reshape((IMG_SIZE, IMG_SIZE))
 
 
 class FontDataLoader(ClassesDataLoader):
@@ -33,6 +33,14 @@ class FontDataLoader(ClassesDataLoader):
         super().__init__(data_array, batched, shuffle, noise_std)
 
 
+    def explore_images(self):
+        for i, flatten in enumerate(self.samples):
+            l = self.neuron_to_class_dict[self.classes_neurons[i]]
+            cv2.imshow('image', flatten_to_image(flatten))
+            print("label: %s"%(l))
+            cv2.waitKey()
+
+
     @staticmethod
     def load_font_data(data_dir):
         """
@@ -53,7 +61,7 @@ class FontDataLoader(ClassesDataLoader):
             if divider in file_name:
                 label = file_name.split(divider)[0]
                 # Using 0 to read image in grayscale mode
-                img = cv.imread(data_dir + file_name, 0) / 255.
+                img = cv2.imread(data_dir + file_name, 0) / 255.
                 pad_image = np.ones((IMG_SIZE, IMG_SIZE))
                 w, h = img.shape
                 l_pad, top_pad = int((IMG_SIZE - w) / 2), int((IMG_SIZE - h) / 2)
@@ -61,7 +69,7 @@ class FontDataLoader(ClassesDataLoader):
                 pad_image[l_pad:r_pad, top_pad:bottom_pad] = img
                 # Turn black into the high values, and white to the low value,
                 # and increase the signal
-                pad_image = 10*(1 - pad_image)
+                pad_image = 10 * (1 - pad_image)
 
                 data_array.append((label, pad_image.flatten()))
         return data_array
