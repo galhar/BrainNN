@@ -15,8 +15,8 @@ def flatten_to_image(flat_img):
 
 class FontDataLoader(ClassesDataLoader):
     DEFAULT = 20
-    SMALL = 12
-    SMALL_SHARP = 13
+    SMALL = 13
+    SMALL_SHARP = 12
     _divider_dict = {DEFAULT: ' resize',
                      SMALL: '_resized12',
                      SMALL_SHARP: '_resized_sharp_12'}
