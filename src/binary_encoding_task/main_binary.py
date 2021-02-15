@@ -65,12 +65,13 @@ def trainer_train(epoches=1):
     return evaluate_binary_representation_nn(net, noise=0, req_shots=5)
 
 
-def trainer_evaluation(epoches=19):
+def trainer_evaluation(epoches=10):
     net, trainer = create_trainer(epoches)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, BinaryDataLoader(
         batched=True)))
     trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
     trainer.train()
+    net.plot_history()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
@@ -89,16 +90,18 @@ def output_distribution_query(epoches=11):
 def create_trainer(epoches=17):
     nodes_details = [N, 2 ** N, 2 ** N - 1]
     IINs_details = [(3, 3), (3, 3), (1, 1)]
-    conn_mat = [[[BrainNN.FC], [BrainNN.FC], [BrainNN.FC]],
-                         [None, [BrainNN.FC], [BrainNN.FC]],
-                         [None, None, [BrainNN.FC]]]
-    iins_factor = 2
+    conn_mat = [[[BrainNN.FC], [BrainNN.FC], None],
+                [None, [BrainNN.FC], [BrainNN.FC]],
+                [None, [BrainNN.FC], [BrainNN.FC]]]
+    iins_factor = 20
+    into_iins_factor = 20
     vis_str = 'None'
     configuration_args = {
         BrainNN.NODES_DETAILS: nodes_details,
         BrainNN.IINS_PER_LAYER_NUM: IINs_details,
         BrainNN.CONNECTIONS_MAT: conn_mat,
         BrainNN.IINS_STRENGTH_FACTOR: iins_factor,
+        BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
         BrainNN.VISUALIZATION_FUNC_STR: vis_str
     }
 
@@ -107,7 +110,8 @@ def create_trainer(epoches=17):
     else:
         net = BrainNN(configuration_args)
     data_loader = BinaryDataLoader(shuffle=True)
-    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=6)
+    optimizer = DefaultOptimizer(net=net, epochs=epoches, sample_reps=6, sharp=1,
+                                 inc_prob=1, dec_prob=0.8)
     trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
@@ -141,5 +145,5 @@ def one_one_evaluation(epochs=16):
 if __name__ == '__main__':
     # script_training(epoches=1)
     # trainer_train(epoches=3)
-    print(trainer_evaluation(epoches=10))
+    print(trainer_evaluation(epoches=1))
     # print(one_one_evaluation())

@@ -1,4 +1,6 @@
 #!/bin/sh
+# Gal Harari
+
 cd ../
 source env/bin/activate
 cd parallel_run

@@ -5,6 +5,7 @@ from src.binary_encoding_task.binary_prediction import create_binary_input_gener
 from src.binary_encoding_task.main_binary import trainer_evaluation, \
     one_one_evaluation, output_distribution_query
 from src.Identity_task.main_identity import identity_evaluation
+from src.Fonts_task.main_font import fonts_trainer_evaluation
 from src.utils.general_utils import save_json, load_json
 
 import numpy as np
@@ -132,7 +133,8 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
                 # <iter_i_data2>],...]
                 titles_copy = titles.copy()
                 titles_copy['title'] += iterations_vec[0][i][0]
-                describe(titles_copy, [net_data[i][1] for net_data in iterations_vec], scatter)
+                describe(titles_copy, [net_data[i][1] for net_data in iterations_vec],
+                         scatter)
             else:
                 describe(titles, [net_data[i] for net_data in iterations_vec], scatter)
     else:
@@ -239,7 +241,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = '  records 12_27_20 00_30.json'
-    check_func = identity_evaluation
-    setattr(check_func, 'title', 'Identity, One layer each popul')
-    average_over_nets(check_func, iterations=3)#, scatter=True, load=load_path)
+    load_path = 'Fonts, stronger into IINs and from IINs  records 01_18_21 20_32.json'
+    check_func = fonts_trainer_evaluation
+    setattr(check_func, 'title', 'Fonts, stronger into IINs and from IINs')
+    average_over_nets(check_func, iterations=10, scatter=False, load=load_path)

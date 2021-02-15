@@ -2,3 +2,5 @@
 /garbage
 /records
 /venv
+/**/.idea/*
+/**/__pycache__
