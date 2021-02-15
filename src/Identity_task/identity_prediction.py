@@ -40,5 +40,5 @@ class IdentityDataLoader(ClassesDataLoader):
         training for each insertion of the input instead, using NetWrapper. Maybe it's
         better.
         """
-        data_array = [(i, get_rep(i, N)) for i in range(N)]
+        data_array = [(i, get_tripled_perm_rep(i, N)) for i in range(N)]
         super().__init__(data_array, batched, shuffle, noise_std)
