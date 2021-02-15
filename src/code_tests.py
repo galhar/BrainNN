@@ -436,14 +436,14 @@ def compare_models_synapses():
     dir = "binary_encoding_task/"
     name1 = "prev_version_save.json"
     name2 = "experiment_save.json"
-    syns1 = BrainNN.load_model(name=dir+name1)._synapses_matrices
-    syns2 = BrainNN.load_model(name=dir+name2)._synapses_matrices
+    syns1 = BrainNN.load_model(name=dir + name1)._synapses_matrices
+    syns2 = BrainNN.load_model(name=dir + name2)._synapses_matrices
 
     for pop_i in range(len(syns1)):
         for l_i in range(len(syns1[pop_i])):
             for s_i in range(len(syns1[pop_i][l_i])):
-                m1,idx1 = syns1[pop_i][l_i][s_i]
-                m2,idx2 = syns2[pop_i][l_i][s_i]
+                m1, idx1 = syns1[pop_i][l_i][s_i]
+                m2, idx2 = syns2[pop_i][l_i][s_i]
                 fig = plt.figure()
                 fig.suptitle("")
 
@@ -458,6 +458,41 @@ def compare_models_synapses():
                 input()
 
 
+def zero_np(fac=0.99, initial=2, high_res=False):
+    arr = np.zeros((4,))
+    arr += initial
+    i = 0
+    if high_res:
+        for i in range(100):
+            print("i={}; Array is {}".format(i, arr))
+            arr *= fac
+    else:
+        for i in range(20000):
+            if i % 1000 == 999:
+                print("Reached i={}; Array is {}".format(i, arr))
+            arr *= fac
+
+
+def test_shots_mat_by_syn_hist():
+    syn_hist = np.array([[1, 2, 0.1, 4],
+                         [3, 3, 4, 5],
+                         [5, 4, 5, 6],
+                         [-2, -3, -2, -1],
+                         [-0.1, -3, -1.5, -1.2]])
+
+    dst_layer_cur_shots = np.array([1, 0, 1, 0]).astype(np.bool)
+
+    shots_mat = 2 * (syn_hist >=
+                     (np.max(syn_hist, axis=0)[
+                      :np.newaxis] * 2 / 3)) - 1
+    neg_idxs = (syn_hist < 0)
+    shots_mat[neg_idxs] = (2 * (syn_hist <= (np.min(
+        syn_hist, axis=0)[:np.newaxis] * 2 / 3)) - 1)[neg_idxs]
+    shots_mat[:, ~dst_layer_cur_shots] = 0
+    print("Syn Hist:\n", syn_hist)
+    print("Dst shots idxs:\n", dst_layer_cur_shots)
+    print("Shots mat Generated:\n", shots_mat)
+
+
 if __name__ == '__main__':
-    check_RF_layers(10, stride=3, dst_n=64)
-    # compare_models_synapses()
+    test_shots_mat_by_syn_hist()

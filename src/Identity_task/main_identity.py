@@ -27,7 +27,7 @@ def create_trainer(epochs=17):
     IINs_details = [(4, ), (4, ), (4, )]
     conn_mat = [[fc, fc, None],
                 [None, fc, fc],
-                [None, fc, fc]]
+                [None, None, fc]]
     # nodes_details = [inp_len, output_shape]
     # IINs_details = [(4, ),  (4, )]
     # conn_mat = [[fc, fc],
@@ -46,7 +46,7 @@ def create_trainer(epochs=17):
     net = BrainNN(configuration_args)
     optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=14, sharp=True,
                                  dec_prob=1, inc_prob=1)
-    trainer = Trainer(net, data_loader, optimizer, verbose=True)
+    trainer = Trainer(net, data_loader, optimizer, verbose=False)
     return net, trainer
 
 
@@ -54,9 +54,8 @@ def identity_evaluation(epochs=6):
     net, trainer = create_trainer(epochs)
     trainer.register_hook(
         lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=True),
-                                        vis_last_ep=True))
+                                        vis_last_ep=False))
     trainer.train()
-    net.plot_history()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
