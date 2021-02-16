@@ -1,6 +1,7 @@
 # Writer: Gal Harari
 # Date: 18/11/2020
 import weakref
+from tqdm import tqdm
 from src.utils.train_utils import EvalNetWrapper
 import numpy as np
 
@@ -108,6 +109,7 @@ class ClassesEvalHook(HookBase):
 
         self._vis_last_ep = vis_last_ep
         self._last_epoch = self._trainer.optimizer.epochs
+        self._verbose = self._trainer._verbose
 
         self._cls_lst = self._data_loader.classes_neurons
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
@@ -115,12 +117,23 @@ class ClassesEvalHook(HookBase):
 
 
     def after_epoch(self):
+        if self._verbose:
+            print("[*] Measuring Accuracy...")
         self._net.freeze()
         class_correct = np.zeros_like(self._cls_lst)
         class_total = np.zeros_like(self._cls_lst)
         for sample_batch, labels in self._data_loader:
-            for i in range(len(sample_batch)):
+            samples_idxs = range(len(sample_batch))
+            if self._verbose and not self._data_loader._batched:
+                samples_idxs = tqdm(samples_idxs)
+
+            for i in samples_idxs:
                 sample, l = sample_batch[i], labels[i]
+
+                if self._verbose:
+                    # Counting on that the loader is of type ClassesDataLoader
+                    print(self._data_loader.neuron_to_class_dict[l])
+
                 output = self._net_wrapper(sample)
                 pred_y = np.argmax(output)
 
@@ -134,7 +147,7 @@ class ClassesEvalHook(HookBase):
         # Save to trainer history
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR].append(classes_acc)
         self._trainer.storage[ClassesEvalHook.TOT_ACC_STR].append(mean_acc)
-        print("Mean accuracy:", mean_acc)
+        print("[*] Mean accuracy =", mean_acc)
         self._ep_idx += 1
         self._net.unfreeze()
 

@@ -301,6 +301,6 @@ class Trainer:
                 self.net.zero_neurons()
                 for h in self._hooks:
                     h.after_batch()
-            print(f"Finished epoch {ep}")
+            print(f"Finished epoch {ep}\\{self.optimizer.epochs - 1}")
             for h in self._hooks:
                 h.after_epoch()
