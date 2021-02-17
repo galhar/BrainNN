@@ -242,6 +242,6 @@ def dummy_3d_func():
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
     load_path = 'Fonts, stronger into IINs and from IINs  records 01_18_21 20_32.json'
-    check_func = trainer_evaluation
-    setattr(check_func, 'title', 'Binary, FeedBack, hebbian rule')
+    check_func = fonts_trainer_evaluation
+    setattr(check_func, 'title', 'Fonts, feed-forward, hebbian rule')
     average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)

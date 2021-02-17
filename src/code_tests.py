@@ -10,6 +10,7 @@ import pstats
 import matplotlib.pyplot as plt
 from src.brainNN import distance, BrainNN
 from src.binary_encoding_task.main_binary import trainer_train
+from src.Fonts_task.main_font import fonts_trainer_evaluation
 
 
 def test_sum_np_vs_python():
@@ -315,7 +316,7 @@ def vid_example():
 
 def search_bottelneck():
     profile = cProfile.Profile()
-    profile.runcall(trainer_train)
+    profile.runcall(fonts_trainer_evaluation)
     ps = pstats.Stats(profile)
     ps.sort_stats('time')
     ps.print_stats()
@@ -494,5 +495,25 @@ def test_shots_mat_by_syn_hist():
     print("Shots mat Generated:\n", shots_mat)
 
 
+def check_indexing_vs_mult():
+    arr = np.ndarray([1, 2, 3, 4, 1, 3, 2, 5, 2, 1, 3])
+    thresh = 2
+    threshed_arr =
+
+    def pure_sum():
+        return sum(x)
+
+
+    def numpy_sum():
+        return np.sum(x)
+
+
+    n = 100000
+    t1 = timeit.timeit(pure_sum, number=n)
+    print('indexing:', t1)
+    t2 = timeit.timeit(numpy_sum, number=n)
+    print('mult:', t2)
+
+
 if __name__ == '__main__':
-    test_shots_mat_by_syn_hist()
+    search_bottelneck()
