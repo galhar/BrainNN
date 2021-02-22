@@ -117,7 +117,7 @@ class MNISTDataLoader(ClassesDataLoader):
             img = np.array(img)
             img = cv2.resize(img, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
             img = img.astype(np.float64) / 255.0
-            img *= 0.2
+            img *= 1
             data_array.append([str(int(label)), img.flatten()])
         super().__init__(data_array, batched, shuffle, noise_std)
 

@@ -76,9 +76,9 @@ def trainer_evaluation(epoches=10):
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
-def output_distribution_query(epoches=11):
+def output_distribution_query(epoches=8):
     net, trainer = create_trainer(epoches)
-    interest_label_neurons = [2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14]
+    interest_label_neurons = [i for i in range(10)]
     trainer.register_hook(
         lambda trainer: OutputDistributionHook(trainer, BinaryDataLoader(
             batched=True), interest_label_neurons))
