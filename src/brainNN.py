@@ -454,6 +454,7 @@ class BrainNN:
             # It means the setup is not defined properly
             conn_mat = default
             print("The connections matrix should be of dim [<popl_num>, <popul_num>]")
+            print("Using default connections")
 
         # For every connection that isn't in the right format use the default
         for i in range(len(conn_mat)):
