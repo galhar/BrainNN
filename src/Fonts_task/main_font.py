@@ -21,8 +21,7 @@ def create_trainer(data_loader, epochs=17):
     fc = [BrainNN.FC]
     kernel = 3
     stride = 1
-    into_n = 1
-    rf = [BrainNN.RF, [kernel, stride, into_n]]
+    rf = [BrainNN.RF, [kernel, stride]]
 
     nodes_details = [img_len, 144, output_shape * 2]
     IINs_details = [(4,), (4,), (4,)]
