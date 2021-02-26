@@ -83,7 +83,7 @@ class MNISTDataLoader(ClassesDataLoader):
     chosen_idxs = [10, 5, 1, 32, 4, 15, 11, 17, 179, 16]
 
 
-    def __init__(self, idxs_lim=(0, 100), small=False, batched=False, shuffle=True,
+    def __init__(self, idxs_lim=(0, 400), small=False, batched=False, shuffle=True,
                  noise_std=0):
         """
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the

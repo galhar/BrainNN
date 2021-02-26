@@ -52,7 +52,8 @@ def find_save_name(base_name, suffix='.json'):
     i = 0
     while os.path.isfile(base_name + '(' + str(i) + ')' + suffix):
         i += 1
-    base_name += str(i)
+    base_name += '(' + str(i) + ')'
+    return base_name
 
 
 def convert_pkl_to_json(name):

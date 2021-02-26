@@ -64,11 +64,12 @@ def fonts_trainer_evaluation(epochs=8):
 
 def mnist_train_evaluate(epochs=8):
     print("[*] Creating the trainer")
-    data_loader = MNISTDataLoader(idxs_lim=[0, 400], shuffle=True)
+    data_loader = MNISTDataLoader(small=False, shuffle=True)
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, MNISTDataLoader(
-        idxs_lim=[0, 400], batched=False), vis_last_ep=False))
-    trainer.register_hook(lambda trainer: SaveHook(trainer, save_after=8))
+        small=False, batched=False), vis_last_ep=False, save=True))
+    trainer.register_hook(
+        lambda trainer: SaveHook(trainer, save_after=8, overwrite=False))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
