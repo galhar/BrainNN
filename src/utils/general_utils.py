@@ -46,6 +46,15 @@ def load_json(name):
     return data
 
 
+def find_save_name(base_name, suffix='.json'):
+    if not os.path.isfile(base_name + suffix):
+        return base_name
+    i = 0
+    while os.path.isfile(base_name + '(' + str(i) + ')' + suffix):
+        i += 1
+    base_name += str(i)
+
+
 def convert_pkl_to_json(name):
     with open(name + ".pkl", "rb") as input_file:
         data = pickle.load(input_file)
@@ -55,7 +64,8 @@ def convert_pkl_to_json(name):
 
 def get_pparent_dir(file_arg):
     currentdir = os.path.dirname(os.path.abspath(file_arg))
-    # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(
+    # inspect.currentframe())))
     parentdir = os.path.dirname(currentdir)
     pparentdir = os.path.dirname(parentdir)
     return pparentdir

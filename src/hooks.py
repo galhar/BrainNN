@@ -3,6 +3,7 @@
 import weakref
 from tqdm import tqdm
 from src.utils.train_utils import EvalNetWrapper
+from src.utils.general_utils import save_json, find_save_name
 import numpy as np
 
 
@@ -42,7 +43,7 @@ class SaveHook(HookBase):
         """
         super(SaveHook, self).__init__(trainer)
         self._save_name = save_name if save_name else 'NetSavedByHook'
-        self._save_after_epoches = save_after
+        self._save_mod = save_after
         self._overwrite = overwrite
         self._net = trainer.net
         self._epochs_counter = 0
@@ -50,7 +51,7 @@ class SaveHook(HookBase):
 
     def after_epoch(self):
         save_name = self._save_name + ("Ep-%d" % self._epochs_counter)
-        if (self._epochs_counter + 1) % self._save_after_epoches == 0:
+        if self._epochs_counter % self._save_mod == self._save_mod - 1:
             self._net.save_state(name=save_name, overwrite=self._overwrite)
         self._epochs_counter += 1
 
@@ -86,10 +87,11 @@ class SaveByEvalHook(HookBase):
 class ClassesEvalHook(HookBase):
     CLS_ACC_STR = 'Classes accuracy over epochs'
     TOT_ACC_STR = 'Total accuracy over epochs'
+    DEFAULT_SAVE_NAME = 'EvaluationHookData'
 
 
     def __init__(self, trainer, data_loader, req_shots_num=5, noise_std=0,
-                 vis_last_ep=False):
+                 vis_last_ep=False, save=False):
         """
 
         :param trainer:
@@ -111,6 +113,9 @@ class ClassesEvalHook(HookBase):
         self._vis_last_ep = vis_last_ep
         self._last_epoch = self._trainer.optimizer.epochs
         self._verbose = self._trainer._verbose
+
+        self._to_save = save
+        self.save_name = None
 
         self._cls_lst = self._data_loader.classes_neurons
         self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
@@ -152,8 +157,27 @@ class ClassesEvalHook(HookBase):
         self._ep_idx += 1
         self._net.unfreeze()
 
+        if self._to_save:
+            self.save()
+
         if self._ep_idx == self._last_epoch and self._vis_last_ep:
             self.visualize()
+
+
+    def save(self):
+        """
+        save the evaluation data in json.
+        Have a unique file for each hook instance, and overwrite the same unique file
+        every epoch.
+        :return:
+        """
+        if self.save_name is None:
+            # Generate this instance's unique file name
+            self.save_name = find_save_name(ClassesEvalHook.DEFAULT_SAVE_NAME)
+        save_json([self._trainer.storage[ClassesEvalHook.CLS_ACC_STR],
+                   self._trainer.storage[ClassesEvalHook.TOT_ACC_STR]],
+                  self.save_name)
+
 
 
     def visualize(self):
