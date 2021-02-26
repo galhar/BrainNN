@@ -86,8 +86,8 @@ def mnist_output_dist(epochs=8):
 
     print("[*] Training")
     trainer.train()
-    tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
-    return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
+    cls_dist_str = OutputDistributionHook.CLS_DIST_STR
+    return [[str(l), trainer.storage[cls_dist_str][l]] for l in interest_label_neurons]
 
 
 if __name__ == '__main__':
