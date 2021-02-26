@@ -10,7 +10,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from src.assesing import average_over_nets
-from src.utils.general_utils import load_json
+from src.utils.general_utils import load_json, save_json
 from single_run import SAVE_PATH, SAVE_NAME
 
 if __name__ == '__main__':
@@ -33,6 +33,8 @@ if __name__ == '__main__':
             print("Collect data %s" % filename)
             combined_data.append(load_json(SAVE_PATH + filename))
             processed.append(filename)
+
+    save_json(combined_data, "collect_py_tmp")
 
     print("Processing merged data...")
     average_over_nets(None, load=combined_data)

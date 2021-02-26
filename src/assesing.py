@@ -33,6 +33,9 @@ if DISABLE_SCIVIEW:
 def dim(a):
     if not (type(a) == list or type(a) == np.ndarray):
         return []
+    # In case of empty list:
+    if not a:
+        return []
     return [len(a)] + dim(a[0])
 
 
@@ -223,6 +226,11 @@ def describe(titles, iterations_vec, scatter):
 
 
 def print_min_max(avg, is_3D, x):
+
+    if not avg.any():
+        # In case of empty list
+        return
+
     max_idx, min_idx = np.argmax(avg), np.argmin(avg)
     if is_3D:
         max_idx = np.unravel_index(max_idx, avg.shape)
