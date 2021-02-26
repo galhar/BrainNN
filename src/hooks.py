@@ -36,7 +36,7 @@ class SaveHook(HookBase):
 
         :param trainer:
         :param save_name: name to save as without the extension
-        :param save_after: save after this number of epoches, repeatedly
+        :param save_after: save after this number of epoches, repeatedly, > 1
         :param overwrite: if another file with the same name exists, do you want to
         overwrite it.
         """
@@ -45,13 +45,14 @@ class SaveHook(HookBase):
         self._save_after_epoches = save_after
         self._overwrite = overwrite
         self._net = trainer.net
-        self._epoches_counter = 0
+        self._epochs_counter = 0
 
 
     def after_epoch(self):
-        self._epoches_counter = (self._epoches_counter + 1) % self._save_after_epoches
-        if self._epoches_counter == 0:
-            self._net.save_state(name=self._save_name, overwrite=self._overwrite)
+        save_name = self._save_name + ("Ep-%d" % self._epochs_counter)
+        if (self._epochs_counter + 1) % self._save_after_epoches == 0:
+            self._net.save_state(name=save_name, overwrite=self._overwrite)
+        self._epochs_counter += 1
 
 
 class SaveByEvalHook(HookBase):
