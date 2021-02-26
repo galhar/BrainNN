@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 import os.path
 import matplotlib.pyplot as plt
-from src.utils.general_utils import save_json, load_json
+from src.utils.general_utils import save_json, load_json, find_save_name
 
 VISUALIZATION_WINDOW_NAME = 'BrainNN'
 SAVE_NAME = 'saved_model'
@@ -306,11 +306,21 @@ class BrainNN:
         syn_type = syn_data[0]
 
         if syn_type == BrainNN.RF:
-            k_size, stride = syn_data[1]
+            # Into how many neurons each RF will have connections
+            into_n = 1
+            if len(syn_data[1]) == 2:
+                k_size, stride = syn_data[1]
+            elif len(syn_data[1]) == 3:
+                k_size, stride, into_n = syn_data[1]
+            else:
+                raise TypeError("Wrong parameters creating RF layer,{} "
+                                "inserted".format(syn_data[1]))
+
             src_extory_num = self._IINs_start_per_popul[popul_idx]
             dst_extory_num = self._IINs_start_per_popul[popul_idx_to_connect]
 
-            syn_mat = self.create_RF_synapses(mean, std, k_size, stride, src_neurons_num,
+            syn_mat = self.create_RF_synapses(mean, std, k_size, stride,
+                                              into_n, src_neurons_num,
                                               src_extory_num,
                                               dst_neurons_num, dst_extory_num)
 
@@ -384,7 +394,8 @@ class BrainNN:
         return syn_mat
 
 
-    def create_RF_synapses(self, mean, std, k_size, stride, src_n_num, src_extory_num,
+    def create_RF_synapses(self, mean, std, k_size, stride, into_n, src_n_num,
+                           src_extory_num,
                            dst_n_num, dst_extory_num, on_centered=True):
         # First set the default value, it will shoot into dst IINs
         syn_mat = np.full((src_n_num, dst_n_num),
@@ -399,9 +410,9 @@ class BrainNN:
         # Assert the dimensions fit
         kernels_per_row = np.ceil(cols / stride)
         kernels_per_col = np.ceil(rows / stride)
-        match_neurons_number = kernels_per_row * kernels_per_col
+        match_neurons_number = kernels_per_row * kernels_per_col * into_n
         error_str = ("Wrong dimensions for RF layer with %d required and %d in "
-                     "parctice" % (match_neurons_number, dst_extory_num))
+                     "practice" % (match_neurons_number, dst_extory_num))
         assert dst_extory_num == match_neurons_number, error_str
 
         # The complication in the kernel creation is to create sharper kernel than the
@@ -425,8 +436,9 @@ class BrainNN:
         for i in range(dst_extory_num):
             # Create receptive field for i neuron in the dst_layer
             for j in range(src_extory_num):
-                # Calculate location of the middle neuron
-                calc_i = i
+                # Calculate location of the middle corresponding RF's neuron
+                # Every <into_n> dst neurons are counted as 1
+                calc_i = i // into_n
                 y = calc_i // kernels_per_col
                 calc_i = calc_i % kernels_per_col
                 # Get x location
@@ -517,11 +529,8 @@ class BrainNN:
         save_name = name if name else SAVE_NAME
 
         # Don't overwrite previously saved models in case overwrite == False
-        if not overwrite and os.path.isfile(save_name + SAVE_SUFFIX):
-            i = 0
-            while os.path.isfile(save_name + str(i) + SAVE_SUFFIX):
-                i += 1
-            save_name += str(i)
+        if not overwrite:
+            save_name = find_save_name(save_name)
 
         # Save self._layers, self._synapses_matrices
         save_dict = {

@@ -359,7 +359,7 @@ def check_distance(neuron_i, dist_fac=3, size=(3, 3), into_neuron=False):
             cv2.waitKey(10)
 
 
-def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
+def check_RF_layers(k_size, stride, into_n=1, dst_n=400, rows=22, cols=22):
     mean, std = 3, 0.3
     iins = 12
     img_n = rows * cols
@@ -367,7 +367,7 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
     dst_l_num, dst_l_IIN_start = dst_n + iins, dst_n
     on_centered = True
 
-    # copyied from the BrainNN:
+    # <copyied from the BrainNN.py>:
     # First set the default value, it will fill the IINs
     syn_mat = np.full((src_l_num, dst_l_num),
                       mean / 4, dtype=np.float64)
@@ -379,9 +379,9 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
     # Assert the dimensions fit
     kernels_per_row = np.ceil(cols / stride)
     kernels_per_col = np.ceil(rows / stride)
-    match_neurons_number = kernels_per_row * kernels_per_col
+    match_neurons_number = kernels_per_row * kernels_per_col * into_n
     error_str = ("Wrong dimensions for RF layer with %d required and %d in "
-                 "parctice" % (match_neurons_number, dst_l_IIN_start))
+                 "practice" % (match_neurons_number, dst_l_IIN_start))
     assert dst_l_IIN_start == match_neurons_number, error_str
 
     if on_centered:
@@ -404,7 +404,8 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
         # Create receptive field for i neuron in the dst_layer
         for j in range(src_l_IIN_start):
             # Calculate location of the middle neuron
-            calc_i = i
+            # Every <into_n> dst_neurons are counted as 1
+            calc_i = i // into_n
             y = calc_i // kernels_per_col
             calc_i = calc_i % kernels_per_col
             # Get x location
@@ -414,7 +415,7 @@ def check_RF_layers(k_size, stride, dst_n=400, rows=22, cols=22):
             # i is the neuron in the src_layer, j is the corresponding neuron in
             # dst_layer, middle neuron is the middle of the corresponding kernel
             syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
-    # /End of copying
+    # </End of copying>
 
     for i in range(dst_l_IIN_start):
         if i < dst_l_num:
@@ -495,25 +496,5 @@ def test_shots_mat_by_syn_hist():
     print("Shots mat Generated:\n", shots_mat)
 
 
-def check_indexing_vs_mult():
-    arr = np.ndarray([1, 2, 3, 4, 1, 3, 2, 5, 2, 1, 3])
-    thresh = 2
-    threshed_arr =
-
-    def pure_sum():
-        return sum(x)
-
-
-    def numpy_sum():
-        return np.sum(x)
-
-
-    n = 100000
-    t1 = timeit.timeit(pure_sum, number=n)
-    print('indexing:', t1)
-    t2 = timeit.timeit(numpy_sum, number=n)
-    print('mult:', t2)
-
-
 if __name__ == '__main__':
-    search_bottelneck()
+    check_RF_layers(3, 1, into_n=2, rows=12, cols=12, dst_n=288)
