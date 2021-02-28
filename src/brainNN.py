@@ -308,10 +308,13 @@ class BrainNN:
         if syn_type == BrainNN.RF:
             # Into how many neurons each RF will have connections
             into_n = 1
+            white = False
             if len(syn_data[1]) == 2:
                 k_size, stride = syn_data[1]
             elif len(syn_data[1]) == 3:
                 k_size, stride, into_n = syn_data[1]
+            elif len(syn_data[1]) == 4:
+                k_size, stride, into_n, white = syn_data[1]
             else:
                 raise TypeError("Wrong parameters creating RF layer,{} "
                                 "inserted".format(syn_data[1]))
@@ -322,7 +325,8 @@ class BrainNN:
             syn_mat = self.create_RF_synapses(mean, std, k_size, stride,
                                               into_n, src_neurons_num,
                                               src_extory_num,
-                                              dst_neurons_num, dst_extory_num)
+                                              dst_neurons_num, dst_extory_num,
+                                              white=white)
 
         if syn_type == BrainNN.FC or popul_idx_to_connect == popul_idx:
             syn_mat = self._create_FC_synapses(cur_layer_idx, dst_neurons_num,
@@ -396,7 +400,22 @@ class BrainNN:
 
     def create_RF_synapses(self, mean, std, k_size, stride, into_n, src_n_num,
                            src_extory_num,
-                           dst_n_num, dst_extory_num, on_centered=True):
+                           dst_n_num, dst_extory_num, on_centered=True, white=False):
+        """
+        TODO: do clear implementation of the white option, now it's ugly
+        :param mean:
+        :param std:
+        :param k_size:
+        :param stride:
+        :param into_n:
+        :param src_n_num:
+        :param src_extory_num:
+        :param dst_n_num:
+        :param dst_extory_num:
+        :param on_centered:
+        :param white:
+        :return:
+        """
         # First set the default value, it will shoot into dst IINs
         syn_mat = np.full((src_n_num, dst_n_num),
                           mean / 4, dtype=np.float64)
@@ -429,6 +448,8 @@ class BrainNN:
             p_kernel = np.linspace(-mean, -mean / 4, num=n_range)
             n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
             kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+        if white:
+            kernel = np.full((k_size, ), mean)
 
         d_to_val = np.zeros((rows + cols,))
         d_to_val[:k_size] = kernel
@@ -448,6 +469,9 @@ class BrainNN:
                 # i is the neuron in the src_layer, j is the corresponding neuron in
                 # dst_layer, middle neuron is the middle of the corresponding kernel
                 syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
+        # Add noise to kernels
+        kernel_idxs = (syn_mat != 0)
+        syn_mat[kernel_idxs] += np.random.normal(0, std, syn_mat.shape)[kernel_idxs]
 
         return syn_mat
 
@@ -1155,7 +1179,7 @@ def pass_func():
     pass
 
 
-def distance(i, j, row_n, col_n):
+def distance(i, j, row_n, col_n, ord=1):
     """
     calculate the distance between the location i and the location j in the matrix,
     considering it came from an image with row_n rows and col_n columns
@@ -1177,7 +1201,7 @@ def distance(i, j, row_n, col_n):
     # Get x location
     x_i, x_j = i, j
 
-    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i], ord=1)
+    return np.linalg.norm([z_j - z_i, y_j - y_i, x_j - x_i], ord=ord)
 
 
 if __name__ == '__main__':

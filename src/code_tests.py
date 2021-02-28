@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from src.brainNN import distance, BrainNN
 from src.binary_encoding_task.main_binary import trainer_train
 from src.Fonts_task.main_font import fonts_trainer_evaluation
+from src.Fonts_task.font_prediction import MNISTDataLoader
 
 
 def test_sum_np_vs_python():
@@ -359,13 +360,14 @@ def check_distance(neuron_i, dist_fac=3, size=(3, 3), into_neuron=False):
             cv2.waitKey(10)
 
 
-def check_RF_layers(k_size, stride, into_n=1, dst_n=400, rows=22, cols=22):
+def check_RF_layers(k_size, stride, into_n=1, dst_n=400, rows=22, cols=22, show=True):
     mean, std = 3, 0.3
     iins = 12
     img_n = rows * cols
     src_l_num, src_l_IIN_start = img_n + iins, img_n
     dst_l_num, dst_l_IIN_start = dst_n + iins, dst_n
     on_centered = True
+    white = True
 
     # <copyied from the BrainNN.py>:
     # First set the default value, it will fill the IINs
@@ -397,6 +399,8 @@ def check_RF_layers(k_size, stride, into_n=1, dst_n=400, rows=22, cols=22):
         p_kernel = np.linspace(-mean, -mean / 4, num=n_range)
         n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
         kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
+    if white:
+        kernel = np.random.normal(mean, 0, k_size)
     d_to_val = np.zeros((rows + cols,))
     d_to_val[:k_size] = kernel
 
@@ -415,26 +419,34 @@ def check_RF_layers(k_size, stride, into_n=1, dst_n=400, rows=22, cols=22):
             # i is the neuron in the src_layer, j is the corresponding neuron in
             # dst_layer, middle neuron is the middle of the corresponding kernel
             syn_mat[j, i] = d_to_val[int(distance(j, middle_neuron, rows, cols))]
+    kernel_idxs = (syn_mat != 0)
+    syn_mat[kernel_idxs] += np.random.normal(0, std, syn_mat.shape)[kernel_idxs]
     # </End of copying>
+    if show:
+        for i in range(dst_l_IIN_start):
+            if i < dst_l_num:
+                # continue
+                pass
+            neurons_syn_vec = syn_mat[:, i]
 
-    for i in range(dst_l_IIN_start):
-        if i < dst_l_num:
-            # continue
-            pass
-        neurons_syn_vec = syn_mat[:, i]
+            neuron_syns = neurons_syn_vec[:src_l_IIN_start].reshape((rows, cols))
 
-        neuron_syns = neurons_syn_vec[:src_l_IIN_start].reshape((rows, cols))
-
-        plt.imshow(neuron_syns)
+            plt.imshow(neuron_syns)
+            plt.colorbar()
+            plt.pause(0.1)
+            plt.show()
+        plt.imshow(syn_mat)
         plt.colorbar()
-        plt.pause(0.1)
         plt.show()
-    plt.imshow(syn_mat)
-    plt.colorbar()
-    plt.show()
+    return syn_mat[:src_l_IIN_start, :dst_l_IIN_start]
 
 
 def compare_models_synapses():
+    """
+    made for debugging when I couldn't find the synapse difference after changing
+    something in BrainNN the shouldn't have changed the synapses initialization.
+    :return:
+    """
     dir = "binary_encoding_task/"
     name1 = "prev_version_save.json"
     name2 = "experiment_save.json"
@@ -496,5 +508,74 @@ def test_shots_mat_by_syn_hist():
     print("Shots mat Generated:\n", shots_mat)
 
 
+def visualize_images_layers(model_file=None):
+    photos_n = 10
+    data_loader = MNISTDataLoader(small=True)
+    images, labels = data_loader.__next__()
+    samples = list(zip(images, labels))
+    img, label = samples[0]
+    pop_num_to_check = 0
+    output_img = get_layer_effect(img, model_file, pop_num_to_check)
+
+    # PLOT
+    fig = plt.figure()
+    # Plot original
+    for i, s in enumerate(samples):
+        ax = fig.add_subplot(3, photos_n, i + 1)
+        flat_img = s[0]
+        img_size = int(np.sqrt(flat_img.shape[0]))
+        plt.imshow(flat_img.reshape((img_size, img_size)))
+        ax.title.set_text(f"{s[1]}")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+    # Plot RF layer
+    for i, s in enumerate(samples):
+        ax = fig.add_subplot(3, photos_n, i + 1 + photos_n)
+        output_img = get_layer_effect(s[0], model_file, 0)
+        plt.imshow(output_img)
+        ax.title.set_text(f"RF {s[1]}")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+    # Plot output
+    for i, s in enumerate(samples):
+        ax = fig.add_subplot(3, photos_n, i + 1 + 2 * photos_n)
+        output_img = get_layer_effect(s[0], model_file, 1)
+        plt.bar([i for i in range(photos_n)], output_img[:photos_n])
+        ax.title.set_text(f"{s[1]}")
+        ax.set_yticklabels([])
+
+    plt.show()
+
+
+def get_layer_effect(img, model_file, pop_num_to_check):
+    """
+    if the layer to check will output something that isn't an image, it will output a
+    1D vec which is it, without change.
+    :param img:
+    :param model_file:
+    :param pop_num_to_check:
+    :return:
+    """
+    if model_file is None:
+        layer_mat_no_IINs = check_RF_layers(3, 1, 1, dst_n=144, rows=12, cols=12,
+                                            show=False)
+    else:
+        model = BrainNN.load_model(name=model_file)
+        mat = model._synapses_matrices[pop_num_to_check][0][1][0]
+        src_IINs = model._IINs_start_per_popul[0]
+        dst_IINs = model._IINs_start_per_popul[1]
+        layer_mat_no_IINs = mat[:src_IINs, :dst_IINs]
+    layer_output = img @ layer_mat_no_IINs
+    img_size = int(np.sqrt(layer_output.shape[0]))
+    if img_size * img_size == layer_output.shape[0]:
+        output_img = layer_output.reshape((img_size, img_size))
+    else:
+        # Here it means it's just a layer without image meaning
+        output_img = layer_output
+    return output_img
+
+
 if __name__ == '__main__':
-    check_RF_layers(3, 1, into_n=2, rows=12, cols=12, dst_n=288)
+    visualize_images_layers('Fonts_task/NetSavedByHookEp-7.json')

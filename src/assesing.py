@@ -34,7 +34,7 @@ def dim(a):
     if not (type(a) == list or type(a) == np.ndarray):
         return []
     # In case of empty list:
-    if not a:
+    if len(a) == 0:
         return []
     return [len(a)] + dim(a[0])
 
@@ -249,7 +249,7 @@ def dummy_3d_func():
 
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
-    load_path = 'Fonts, stronger into IINs and from IINs  records 01_18_21 20_32.json'
+    load_path = ' Accuracy Over Epoches data 11_23_20 14_07.json'
     check_func = mnist_train_evaluate
-    setattr(check_func, 'title', 'MNIST, feedBack, hebbian rule')
-    average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)
+    setattr(check_func, 'title', 'MNIST, feedBack, rfX6, strong IINs')
+    average_over_nets(check_func, iterations=10)# scatter=True, load=load_path)
