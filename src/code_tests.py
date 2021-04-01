@@ -533,7 +533,7 @@ def visualize_images_layers(model_file=None):
     for i, s in enumerate(samples):
         ax = fig.add_subplot(3, photos_n, i + 1 + photos_n)
         output_img = get_layer_effect(s[0], model_file, 0)
-        plt.imshow(output_img)
+        plt.imshow(output_img.reshape(-1,10))
         ax.title.set_text(f"RF {s[1]}")
         ax.set_xticklabels([])
         ax.set_yticklabels([])
@@ -578,4 +578,4 @@ def get_layer_effect(img, model_file, pop_num_to_check):
 
 
 if __name__ == '__main__':
-    visualize_images_layers('Fonts_task/NetSavedByHookEp-7.json')
+    visualize_images_layers('Fonts_task/NetSavedByHookEp-0(1).json')

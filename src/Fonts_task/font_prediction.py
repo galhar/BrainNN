@@ -84,7 +84,7 @@ class MNISTDataLoader(ClassesDataLoader):
 
 
     def __init__(self, idxs_lim=(0, 400), small=False, batched=False, shuffle=True,
-                 noise_std=0):
+                 noise_std=0, amp=1):
         """
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the
         model to be more robust, like dropout in ANNs. Noise can be generated during
@@ -117,7 +117,7 @@ class MNISTDataLoader(ClassesDataLoader):
             img = np.array(img)
             img = cv2.resize(img, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
             img = img.astype(np.float64) / 255.0
-            img *= 1
+            img *= amp
             data_array.append([str(int(label)), img.flatten()])
         super().__init__(data_array, batched, shuffle, noise_std)
 

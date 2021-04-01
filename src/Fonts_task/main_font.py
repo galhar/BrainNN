@@ -20,20 +20,20 @@ def create_trainer(data_loader, epochs=17):
 
     fc = [BrainNN.FC]
     kernel = 3
-    stride = 1
-    into_n = 6
+    stride = 3
+    into_n = 1
     white = True
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
-    nodes_details = [img_len, 144 * into_n, output_shape]
+    nodes_details = [img_len, 100, output_shape]
     IINs_details = [(4,), (4,), (4,)]
-    conn_mat = [[fc, rf, None],
+    conn_mat = [[fc, fc, None],
                 [None, fc, fc],
                 [None, fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 200 * into_n
-    into_iins_factor = 200 * into_n
+    into_iins_factor = 20 * into_n
     vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
@@ -47,7 +47,7 @@ def create_trainer(data_loader, epochs=17):
     net = BrainNN(configuration_args)
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
-                                 inc_prob=1, dec_prob=0.9)
+                                 inc_prob=0.9, dec_prob=0.9)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
@@ -71,8 +71,8 @@ def mnist_train_evaluate(epochs=8):
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, MNISTDataLoader(
         small=True, batched=False), vis_last_ep=False, save=True))
-    trainer.register_hook(
-        lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
+    # trainer.register_hook(
+    #     lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR

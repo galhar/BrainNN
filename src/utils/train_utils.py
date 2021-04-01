@@ -118,16 +118,23 @@ class ClassesDataLoader(DataLoaderBase):
 
         self._stopped_iter = True
 
-        self.classes = [l for l, sample in data_array]
-        self.classes_neurons = [i for i in range(len(data_array))]
-        self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
-                                     range(len(data_array))}
-
-        self.samples = [self._noise(sample) for l, sample in data_array]
+        self.classes = None
+        self.classes_neurons = None
+        self.neuron_to_class_dict = None
+        self.samples = None
+        self.build_from_data_array(data_array)
 
         # Batched options:
         self._pool_counter = 0
         self._idxs_pool = self.classes_neurons.copy()
+
+
+    def build_from_data_array(self, data_array):
+        self.classes = [l for l, sample in data_array]
+        self.classes_neurons = [i for i in range(len(data_array))]
+        self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
+                                     range(len(data_array))}
+        self.samples = [self._noise(sample) for l, sample in data_array]
 
 
     def _noise(self, s):
@@ -159,6 +166,7 @@ class ClassesDataLoader(DataLoaderBase):
 
 
     def _batched_next(self):
+        # Always random
         if self._pool_counter == len(self.classes_neurons):
             self._pool_counter = 0
             self._idxs_pool = self.classes_neurons.copy()
