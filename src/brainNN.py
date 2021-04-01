@@ -14,6 +14,7 @@ RECORD_SAVE_NAME = 'visualization_video'
 
 class BrainNN:
     NODES_DETAILS = 'Layers details [population := (IO neurons num, preds neurons num)]'
+    WINNERS_PER_LAYER = 'Winners trying to get in each layer. 0=No INs effect'
     IINS_PER_LAYER_NUM = 'IINs per layer num [(IO IINs num, preds IINs num)]'
     CONNECTIONS_MAT = 'Stats for each population pair if and which connection it has'
     SYNAPSES_INITIALIZE_MEAN = 'Initialization of synapses to this size'
@@ -65,6 +66,7 @@ class BrainNN:
         # Neuron parameters
         # [0][0] layer is the input layer. [-1][0] layer is the output layer
         NODES_DETAILS: [4, 10, 10],
+        WINNERS_PER_LAYER: [0, 3, 1],
         # This also sets the number of layers in population
         IINS_PER_LAYER_NUM: [(2, 1), (1, 3), (1, 1)],
         # Has to be of dim [<popul_num>,<popul_num>]
@@ -76,7 +78,7 @@ class BrainNN:
         SYNAPSE_DISTANCE_FACTOR: 3,
         IINS_STRENGTH_FACTOR: 2,
         INTO_IINS_STRENGTH_FACTOR: 4,
-        SHOOT_THRESHOLD: 40,
+        SHOOT_THRESHOLD: 1,
         SPACIAL_ARGS: (1, 1),
         SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
@@ -222,6 +224,8 @@ class BrainNN:
         std = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
         IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
         into_IINs_factor = self._conf_args[BrainNN.INTO_IINS_STRENGTH_FACTOR]
+
+        self._winners_per_layer = self._conf_args[BrainNN.WINNERS_PER_LAYER]
 
         # This determines for each layer if it will have inter-connections
         conn_mat = self._conf_args[BrainNN.CONNECTIONS_MAT]
