@@ -24,9 +24,6 @@ class BrainNN:
                               'weaker exponentially by this factor. It also affects the' \
                               ' inner connections in the same way, and make the nodes ' \
                               'connections stronger by this factor. in (1,inf]'
-    IINS_STRENGTH_FACTOR = 'The IINs will stronger by this factor than the excitatory'
-    INTO_IINS_STRENGTH_FACTOR = 'Inter-layer connections from exitatory into the IINs ' \
-                                'will be stronger by this factor'
     SHOOT_THRESHOLD = 'Threshold that above the neuron will shoot'
     SPACIAL_ARGS = 'should be only changed in case of images. in that case insert ' \
                    '(<rows_num>,<columns_num>)'
@@ -56,7 +53,7 @@ class BrainNN:
     SAVE_NEURONS = 'Saved layers\' neurons associated string'
 
     # The parameters requires to save a net in the configuration arguments
-    _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM]
+    _required_to_save = [NODES_DETAILS, IINS_PER_LAYER_NUM, WINNERS_PER_LAYER]
 
     # Layers types:
     RF = 'Receptive-Field Synapses'
@@ -73,11 +70,9 @@ class BrainNN:
         CONNECTIONS_MAT: [[FC, FC, 0], [0, FC, FC], [0, FC, FC]],
         # This might be connected to " WEIGHTS_SUM_INTO_NEURON "
         SYNAPSES_INITIALIZE_MEAN: 5,
-        SYNAPSES_INITIALIZE_STD: 0.1,
+        SYNAPSES_INITIALIZE_STD: 0.05,
         # Should be lower than 1 if the synapses mean is lower than 1!
         SYNAPSE_DISTANCE_FACTOR: 3,
-        IINS_STRENGTH_FACTOR: 2,
-        INTO_IINS_STRENGTH_FACTOR: 4,
         SHOOT_THRESHOLD: 1,
         SPACIAL_ARGS: (1, 1),
         SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
@@ -157,13 +152,15 @@ class BrainNN:
 
     def _determine_weights_res(self):
         max_value, min_value = 0., 0.
-        # Iterate only on synapses from the first layer, assuming it represents well
-        # all the others
-        for mat, idx in self._synapses_matrices[0][0]:
-            mat_max = np.max(mat)
-            mat_min = np.min(mat)
-            max_value = mat_max if mat_max > max_value else max_value
-            min_value = mat_min if mat_min < min_value else min_value
+        for popul_mats in self._synapses_matrices:
+
+            # Iterate only on synapses from the first layer each population, assuming it
+            # represents well all the others
+            for mat, idx in popul_mats[0]:
+                mat_max = np.max(mat)
+                mat_min = np.min(mat)
+                max_value = mat_max if mat_max > max_value else max_value
+                min_value = mat_min if mat_min < min_value else min_value
 
         # That's not accurate! It's not that a weights can only increase by factor of 2,
         # But that's the approximation
@@ -222,10 +219,9 @@ class BrainNN:
         # Initialize the connections with some randomness
         mean = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_MEAN]
         std = self._conf_args[BrainNN.SYNAPSES_INITIALIZE_STD] * mean
-        IINs_factor = self._conf_args[BrainNN.IINS_STRENGTH_FACTOR]
-        into_IINs_factor = self._conf_args[BrainNN.INTO_IINS_STRENGTH_FACTOR]
 
         self._winners_per_layer = self._conf_args[BrainNN.WINNERS_PER_LAYER]
+        self._validate_winners_per_layer()
 
         # This determines for each layer if it will have inter-connections
         conn_mat = self._conf_args[BrainNN.CONNECTIONS_MAT]
@@ -279,18 +275,18 @@ class BrainNN:
                             normalize_vec += np.abs(layer_list[-1][0]).sum(axis=1)
                 # The IINs might be stronger than the excitatory
                 iins_start = self._IINs_start_per_popul[popul_idx]
-                normalize_vec[iins_start:] /= IINs_factor
 
                 # Now normalize the output from each neuron as explained above the loop
                 for i in range(len(layer_list)):
                     mat, idxs = layer_list[i]
                     norm_mat = np.zeros_like(mat) + normalize_vec[:, np.newaxis]
+                    INs_src = self._IINs_start_per_popul[popul_idx]
+                    # idxs[0] is the population idx of the dst layer
+                    INs_dst = self._IINs_start_per_popul[idxs[0]]
 
-                    if idxs[0] == popul_idx and idxs[1] == cur_layer_idx:
-                        # Inter-layer conns to IINs are stronger, doesn't count
-                        # material in the net and therefore it happens here and not in
-                        # layer creation. Strengthen output of exctory into iins
-                        norm_mat[:iins_start, iins_start:] /= into_IINs_factor
+                    # Don't change INs connections
+                    norm_mat[INs_src:, :] = self._thresh
+                    norm_mat[:, INs_dst:] = self._thresh
 
                     layer_list[i][0] = self._thresh * mat / norm_mat
 
@@ -346,13 +342,20 @@ class BrainNN:
         syn_mat = np.random.normal(mean, std, (layer_neurons_num, l_to_conn_neurons_n))
         extory_num = self._IINs_start_per_popul[popul_idx]
 
+        # Prepare into INs connections
+        syn_mat[:, extory_num:] = self._thresh
         # Allow inhibition
-        syn_mat[extory_num:] *= -1
+        syn_mat[extory_num:] = -self._thresh
 
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect == popul_idx:
             # Here it means the layers are the same layer
             # Create only connections to and from the IINs
+            winners_n = self._winners_per_layer[popul_idx]
             syn_mat[:extory_num, :extory_num] = 0
+            if winners_n == 0:
+                return np.zeros_like(syn_mat)
+
+            syn_mat[:extory_num, extory_num:] /= winners_n
             return syn_mat
 
         # Here it means those are 2 different layers
@@ -453,7 +456,7 @@ class BrainNN:
             n_kernel = np.linspace(mean / 3, mean * 3 / 4, num=p_range)
             kernel = np.hstack([p_kernel, n_kernel]) + np.random.normal(0, std, k_size)
         if white:
-            kernel = np.full((k_size, ), mean)
+            kernel = np.full((k_size,), mean)
 
         d_to_val = np.zeros((rows + cols,))
         d_to_val[:k_size] = kernel
@@ -505,6 +508,17 @@ class BrainNN:
                     conn_mat[i][j] = default[i][j]
 
         return conn_mat
+
+
+    def _validate_winners_per_layer(self):
+        assert all([winners_n >= 0 for winners_n in self._winners_per_layer])
+
+        default_winners_per_layer = [1 for i in range(len(self._layers))]
+        default_winners_per_layer[0] = 0
+
+        if len(self._winners_per_layer) != len(self._layers):
+            print("Wrong dimensions winners_per_layer! Used default.")
+            self._winners_per_layer = default_winners_per_layer
 
 
     def _validate_learning_functions(self):
@@ -829,14 +843,23 @@ class BrainNN:
 
                 for idx, mat_data in enumerate(mats_from_cur_l):
                     matrix, dst_idxs = mat_data
+                    INs_src, INs_dst = self._IINs_start_per_popul[cur_pop_i], \
+                                       self._IINs_start_per_popul[dst_idxs[0]]
                     syn_hist, dst_syn_hist_idxs = cur_l_syns_hist[idx]
+
                     assert dst_syn_hist_idxs == dst_idxs
 
                     src_cur_shots = self._current_shots[cur_pop_i][cur_l_i]
-                    dst_layer_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
+                    dst_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
+
+                    # Don't change INs connections
+                    matrix = matrix[:INs_src, :INs_dst]
+                    syn_hist = syn_hist[:INs_src, :INs_dst]
+                    src_cur_shots = src_cur_shots[:INs_src]
+                    dst_cur_shots = dst_cur_shots[:INs_dst]
 
                     # Most of the times te weights won't change:
-                    if dst_layer_cur_shots.any():
+                    if dst_cur_shots.any():
                         # who didn't previously shot get -1 to decrease if the dst neuron
                         # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to
                         # make 1
@@ -858,13 +881,13 @@ class BrainNN:
                         neg_idxs = (syn_hist < 0)
                         shots_mat[neg_idxs] = (2 * (syn_hist <= (np.min(
                             syn_hist, axis=0)[:np.newaxis] * 2 / 3)) - 1)[neg_idxs]
-                        shots_mat[:, ~dst_layer_cur_shots] = 0
+                        shots_mat[:, ~dst_cur_shots] = 0
 
-                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][0] = \
-                            self._update_synapses_matrix(shots_mat, matrix)
+                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
+                        :INs_dst] = self._update_synapses_matrix(shots_mat, matrix)
 
                         # Zero material through changed synapses
-                        syn_hist[:, dst_layer_cur_shots] = 0
+                        syn_hist[:, dst_cur_shots] = 0
 
                     # Past shots will decrease. 0.99 do from 2 to 0.7 over 100 time
                     # steps
@@ -1213,16 +1236,12 @@ if __name__ == '__main__':
     nodes_details = [N, N, N - 1, N + 1]
     IINs_details = [(3, 3), (3, 3, 4), (3, 3), (1, 1)]
     inter_connections = [(True, True), (True, True), (True, True), (True, True)]
-    spacial_args = (20, 20)
     feedback = True
     configuration = {
         BrainNN.NODES_DETAILS: nodes_details,
         BrainNN.IINS_PER_LAYER_NUM: IINs_details,
         BrainNN.CONNECTIONS_MAT: inter_connections,
         BrainNN.VISUALIZATION_FUNC_STR: 'No ',
-        BrainNN.SYNAPSES_INITIALIZE_MEAN: 100,
-        BrainNN.SHOOT_THRESHOLD: 100,
-        BrainNN.SPACIAL_ARGS: spacial_args
     }
     brainNNmodel = BrainNN(configuration)
     brainNNmodel.visualize()

@@ -25,23 +25,20 @@ def create_trainer(data_loader, epochs=17):
     white = True
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
-    nodes_details = [img_len, 100, output_shape]
-    IINs_details = [(4,), (4,), (4,)]
-    conn_mat = [[fc, fc, None],
-                [None, fc, fc],
-                [None, fc, fc]]
+    nodes_details = [img_len, output_shape]
+    IINs_details = [(4,), (4,)]
+    winners = [1, 1]
+    conn_mat = [[fc, fc],
+                [fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
-    iin_factor = 200 * into_n
-    into_iins_factor = 20 * into_n
-    vis_str = 'None'
+    vis_str = 'None '
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
+                          BrainNN.WINNERS_PER_LAYER: winners,
                           BrainNN.SPACIAL_ARGS: img_dim,
                           BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
-                          BrainNN.IINS_STRENGTH_FACTOR: iin_factor,
-                          BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
