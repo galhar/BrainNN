@@ -256,7 +256,7 @@ class BrainNN:
                         if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
                                 != popul_idx:
                             continue
-                        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
+                        idxs = [popul_idx_to_connect, layer_to_conn_idx]
                         # Create connections to layer "layer_to_connect" from current
                         # layer
                         syn_mat = self._create_connections_between_2_layers(

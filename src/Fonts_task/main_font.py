@@ -13,6 +13,7 @@ pparentdir = get_pparent_dir(__file__)
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
+LOAD = True
 
 def create_trainer(data_loader, epochs=17):
     img_len = len(data_loader.samples[0])
@@ -25,11 +26,10 @@ def create_trainer(data_loader, epochs=17):
     white = True
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
-    nodes_details = [img_len, 144 * into_n, output_shape]
-    IINs_details = [(4,), (4,), (4,)]
-    conn_mat = [[fc, rf, None],
-                [None, fc, fc],
-                [None, fc, fc]]
+    nodes_details = [img_len, output_shape]
+    IINs_details = [(4,), (4,)]
+    conn_mat = [[fc, fc],
+                [fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     iin_factor = 200 * into_n
@@ -44,7 +44,10 @@ def create_trainer(data_loader, epochs=17):
                           BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
-    net = BrainNN(configuration_args)
+    if LOAD:
+        net = BrainNN.load_model(configuration_args)
+    else:
+        net = BrainNN(configuration_args)
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
                                  inc_prob=1, dec_prob=0.9)
