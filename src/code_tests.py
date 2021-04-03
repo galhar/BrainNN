@@ -10,7 +10,7 @@ import pstats
 import matplotlib.pyplot as plt
 from src.brainNN import distance, BrainNN
 from src.binary_encoding_task.main_binary import trainer_train
-from src.Fonts_task.main_font import fonts_trainer_evaluation
+from src.Fonts_task.main_font import fonts_trainer_evaluation, mnist_train_evaluate
 from src.Fonts_task.font_prediction import MNISTDataLoader
 
 
@@ -317,7 +317,7 @@ def vid_example():
 
 def search_bottelneck():
     profile = cProfile.Profile()
-    profile.runcall(fonts_trainer_evaluation)
+    profile.runcall(mnist_train_evaluate)
     ps = pstats.Stats(profile)
     ps.sort_stats('time')
     ps.print_stats()
@@ -578,4 +578,5 @@ def get_layer_effect(img, model_file, pop_num_to_check):
 
 
 if __name__ == '__main__':
-    visualize_images_layers('Fonts_task/NetSavedByHookEp-0(1).json')
+    search_bottelneck()
+    # visualize_images_layers('Fonts_task/NetSavedByHookEp-0(1).json')

@@ -1,7 +1,7 @@
 # Writer: Gal Harari
 # Date: 14/12/2020
 from src.Fonts_task.font_prediction import FontDataLoader, MNISTDataLoader, IMG_SIZE
-from src.brainNN import BrainNN
+from src.brainNN import BrainNN, SAVE_NAME, SAVE_SUFFIX
 from src.hooks import ClassesEvalHook, OutputDistributionHook, SaveHook, SaveByEvalHook
 from src.utils.train_utils import DefaultOptimizer, Trainer
 from src.utils.general_utils import get_pparent_dir
@@ -13,6 +13,7 @@ pparentdir = get_pparent_dir(__file__)
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
+LOAD = False
 
 def create_trainer(data_loader, epochs=17):
     img_len = len(data_loader.samples[0])
@@ -32,7 +33,7 @@ def create_trainer(data_loader, epochs=17):
                 [fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
-    vis_str = 'None '
+    vis_str = 'None'
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
@@ -41,7 +42,10 @@ def create_trainer(data_loader, epochs=17):
                           BrainNN.SYNAPSE_SPACIAL_DISTANCE_FACTOR: spacial_dist_fac,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
-    net = BrainNN(configuration_args)
+    if LOAD:
+        net = BrainNN.load_model(SAVE_NAME + SAVE_SUFFIX)
+    else:
+        net = BrainNN(configuration_args)
     net.visualize_idle()
     optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
                                  inc_prob=0.9, dec_prob=0.9)
