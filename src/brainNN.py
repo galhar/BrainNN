@@ -153,7 +153,6 @@ class BrainNN:
     def _determine_weights_res(self):
         max_value, min_value = 0., 0.
         for popul_mats in self._synapses_matrices:
-
             # Iterate only on synapses from the first layer each population, assuming it
             # represents well all the others
             for mat, idx in popul_mats[0]:
@@ -256,7 +255,7 @@ class BrainNN:
                         if layer_to_conn_idx != cur_layer_idx and popul_idx_to_connect \
                                 != popul_idx:
                             continue
-                        idxs = tuple([popul_idx_to_connect, layer_to_conn_idx])
+                        idxs = [popul_idx_to_connect, layer_to_conn_idx]
                         # Create connections to layer "layer_to_connect" from current
                         # layer
                         syn_mat = self._create_connections_between_2_layers(
@@ -853,10 +852,10 @@ class BrainNN:
                     dst_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
 
                     # Don't change INs connections
-                    matrix = matrix[:INs_src, :INs_dst]
-                    syn_hist = syn_hist[:INs_src, :INs_dst]
-                    src_cur_shots = src_cur_shots[:INs_src]
-                    dst_cur_shots = dst_cur_shots[:INs_dst]
+                    # matrix = matrix[:INs_src, :INs_dst]
+                    # syn_hist = syn_hist[:INs_src, :INs_dst]
+                    # src_cur_shots = src_cur_shots[:INs_src]
+                    # dst_cur_shots = dst_cur_shots[:INs_dst]
 
                     # Most of the times te weights won't change:
                     if dst_cur_shots.any():
@@ -883,8 +882,9 @@ class BrainNN:
                             syn_hist, axis=0)[:np.newaxis] * 2 / 3)) - 1)[neg_idxs]
                         shots_mat[:, ~dst_cur_shots] = 0
 
-                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
-                        :INs_dst] = self._update_synapses_matrix(shots_mat, matrix)
+                        # TODO: only extory
+                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][
+                            0] = self._update_synapses_matrix(shots_mat, matrix)
 
                         # Zero material through changed synapses
                         syn_hist[:, dst_cur_shots] = 0

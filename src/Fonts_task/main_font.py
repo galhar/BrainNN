@@ -13,7 +13,7 @@ pparentdir = get_pparent_dir(__file__)
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
-LOAD = False
+LOAD = True
 
 def create_trainer(data_loader, epochs=17):
     img_len = len(data_loader.samples[0])
@@ -43,7 +43,7 @@ def create_trainer(data_loader, epochs=17):
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     if LOAD:
-        net = BrainNN.load_model(SAVE_NAME + SAVE_SUFFIX)
+        net = BrainNN.load_model(configuration_args)
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
