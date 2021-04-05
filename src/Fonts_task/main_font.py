@@ -49,8 +49,8 @@ def create_trainer(data_loader, epochs=17):
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=5, sharp=True,
-                                 inc_prob=0.9, dec_prob=0.9)
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=10, sharp=True,
+                                 inc_prob=0.3, dec_prob=0.4)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
@@ -61,9 +61,7 @@ def fonts_trainer_evaluation(epochs=8):
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
         TEST_DIR, batched=False), vis_last_ep=False, save=True))
-    # trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
-    trainer.register_hook(
-        lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
+    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
@@ -101,4 +99,4 @@ def mnist_output_dist(epochs=8):
 
 
 if __name__ == '__main__':
-    print(fonts_trainer_evaluation(epochs=8))
+    print(mnist_train_evaluate(epochs=8))
