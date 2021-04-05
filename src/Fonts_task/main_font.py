@@ -13,7 +13,8 @@ pparentdir = get_pparent_dir(__file__)
 TRAIN_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 TEST_DIR = os.path.join(pparentdir, 'data/Font images/Calibri Font images/')
 
-LOAD = True
+LOAD = False
+
 
 def create_trainer(data_loader, epochs=17):
     img_len = len(data_loader.samples[0])
@@ -68,10 +69,10 @@ def fonts_trainer_evaluation(epochs=8):
 
 def mnist_train_evaluate(epochs=8):
     print("[*] Creating the trainer")
-    data_loader = MNISTDataLoader(small=True, shuffle=True)
+    data_loader = MNISTDataLoader(small=True, shuffle=True, amp=0.03)
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, MNISTDataLoader(
-        small=True, batched=False), vis_last_ep=False, save=True))
+        small=True, batched=False, amp=0.03), vis_last_ep=False, save=True))
     # trainer.register_hook(
     #     lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
     print("[*] Training")

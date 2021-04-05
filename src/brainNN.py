@@ -11,6 +11,10 @@ SAVE_NAME = 'saved_model'
 SAVE_SUFFIX = '.pkl'
 RECORD_SAVE_NAME = 'visualization_video'
 
+# Magic numbers:
+NORM_C = 1 / 40
+COMPARE_SYN_C = 2 / 3
+
 
 class BrainNN:
     NODES_DETAILS = 'Layers details [population := (IO neurons num, preds neurons num)]'
@@ -287,7 +291,7 @@ class BrainNN:
                     norm_mat[INs_src:, :] = self._thresh
                     norm_mat[:, INs_dst:] = self._thresh
 
-                    layer_list[i][0] = self._thresh * mat / norm_mat
+                    layer_list[i][0] = self._thresh * NORM_C * mat / norm_mat
 
 
     def _create_connections_between_2_layers(self, src_neurons_num,
@@ -875,11 +879,11 @@ class BrainNN:
                         # otherwise decrease
                         shots_mat = 2 * (syn_hist >=
                                          (np.max(syn_hist, axis=0)[
-                                          :np.newaxis] * 2 / 3)) - 1
+                                          :np.newaxis] * COMPARE_SYN_C)) - 1
                         # Handle negative weights as well
                         neg_idxs = (syn_hist < 0)
                         shots_mat[neg_idxs] = (2 * (syn_hist <= (np.min(
-                            syn_hist, axis=0)[:np.newaxis] * 2 / 3)) - 1)[neg_idxs]
+                            syn_hist, axis=0)[:np.newaxis] * COMPARE_SYN_C)) - 1)[neg_idxs]
                         shots_mat[:, ~dst_cur_shots] = 0
 
                         self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
