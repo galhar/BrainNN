@@ -61,7 +61,9 @@ def fonts_trainer_evaluation(epochs=8):
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
         TEST_DIR, batched=False), vis_last_ep=False, save=True))
-    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
+    # trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
+    trainer.register_hook(
+        lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
