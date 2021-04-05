@@ -852,10 +852,10 @@ class BrainNN:
                     dst_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
 
                     # Don't change INs connections
-                    # matrix = matrix[:INs_src, :INs_dst]
-                    # syn_hist = syn_hist[:INs_src, :INs_dst]
-                    # src_cur_shots = src_cur_shots[:INs_src]
-                    # dst_cur_shots = dst_cur_shots[:INs_dst]
+                    matrix = matrix[:INs_src, :INs_dst]
+                    syn_hist = syn_hist[:INs_src, :INs_dst]
+                    src_cur_shots = src_cur_shots[:INs_src]
+                    dst_cur_shots = dst_cur_shots[:INs_dst]
 
                     # Most of the times te weights won't change:
                     if dst_cur_shots.any():
@@ -882,9 +882,8 @@ class BrainNN:
                             syn_hist, axis=0)[:np.newaxis] * 2 / 3)) - 1)[neg_idxs]
                         shots_mat[:, ~dst_cur_shots] = 0
 
-                        # TODO: only extory
-                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][
-                            0] = self._update_synapses_matrix(shots_mat, matrix)
+                        self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
+                        :INs_dst] = self._update_synapses_matrix(shots_mat, matrix)
 
                         # Zero material through changed synapses
                         syn_hist[:, dst_cur_shots] = 0
