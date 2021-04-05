@@ -5,7 +5,8 @@ from src.binary_encoding_task.binary_prediction import create_binary_input_gener
 from src.binary_encoding_task.main_binary import trainer_evaluation, \
     one_one_evaluation, output_distribution_query
 from src.Identity_task.main_identity import identity_evaluation
-from src.Fonts_task.main_font import fonts_trainer_evaluation, mnist_train_evaluate
+from src.Fonts_task.main_font import fonts_trainer_evaluation, mnist_train_evaluate, \
+    mnist_output_dist
 from src.utils.general_utils import save_json, load_json
 
 import numpy as np
@@ -226,7 +227,6 @@ def describe(titles, iterations_vec, scatter):
 
 
 def print_min_max(avg, is_3D, x):
-
     if not avg.any():
         # In case of empty list
         return
@@ -250,6 +250,6 @@ def dummy_3d_func():
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
     load_path = ' Accuracy Over Epoches data 11_23_20 14_07.json'
-    check_func = mnist_train_evaluate
-    setattr(check_func, 'title', 'MNIST, feedBack, rfX6, strong IINs')
-    average_over_nets(check_func, iterations=10)# scatter=True, load=load_path)
+    check_func = mnist_output_dist
+    setattr(check_func, 'title', 'MNIST output dist, 2 layers')
+    average_over_nets(check_func, iterations=5)  # scatter=True, load=load_path)

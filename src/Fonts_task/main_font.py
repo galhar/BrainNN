@@ -83,13 +83,13 @@ def mnist_train_evaluate(epochs=8):
 
 def mnist_output_dist(epochs=8):
     print("[*] Creating the trainer")
-    data_loader = MNISTDataLoader(small=True, shuffle=True)
+    data_loader = MNISTDataLoader(small=True, shuffle=True, amp=0.03)
     net, trainer = create_trainer(data_loader, epochs)
 
     interest_label_neurons = [i for i in range(10)]
     trainer.register_hook(
         lambda trainer: OutputDistributionHook(trainer, MNISTDataLoader(
-            small=True, batched=False), interest_label_neurons))
+            small=True, batched=False, amp=0.03), interest_label_neurons))
 
     print("[*] Training")
     trainer.train()
@@ -98,4 +98,4 @@ def mnist_output_dist(epochs=8):
 
 
 if __name__ == '__main__':
-    print(mnist_train_evaluate(epochs=8))
+    print(fonts_trainer_evaluation(epochs=8))
