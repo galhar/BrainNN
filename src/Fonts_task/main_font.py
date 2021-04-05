@@ -49,7 +49,7 @@ def create_trainer(data_loader, epochs=17):
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=5, sharp=True,
                                  inc_prob=0.9, dec_prob=0.9)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer

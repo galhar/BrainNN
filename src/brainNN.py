@@ -119,21 +119,12 @@ class BrainNN:
         vis_size = self._conf_args[BrainNN.VISUALIZATION_SIZE]
         self._visualization_frame = np.zeros((vis_size[0], vis_size[1], 3))
         h, w, _ = self._visualization_frame.shape
+        self._vis_counter = 0
+        self._vis_window_name = VISUALIZATION_WINDOW_NAME
+        self._vis_record = self._conf_args[BrainNN.RECORD_FLAG]
+        self._record_writer = None
         # Choose visualization function
         self.set_visualization(self._conf_args[BrainNN.VISUALIZATION_FUNC_STR])
-        self._vis_counter = 0
-
-        # Create visualization window
-        self._vis_window_name = VISUALIZATION_WINDOW_NAME
-        cv2.namedWindow(self._vis_window_name)
-        # To make sure it's in the viewable screen
-        cv2.moveWindow(self._vis_window_name, 0, 0)
-        self._vis_record = self._conf_args[BrainNN.RECORD_FLAG]
-        assert len(self._vis_record) == 2, "RECORD_FLAG format must be [to_record, " \
-                                           "to_show_during_run]"
-        self._record_writer = None
-        if self._vis_record[0]:
-            self._create_video_writer()
 
         # Initialize records structures
         self._sensory_input = None
@@ -883,7 +874,8 @@ class BrainNN:
                         # Handle negative weights as well
                         neg_idxs = (syn_hist < 0)
                         shots_mat[neg_idxs] = (2 * (syn_hist <= (np.min(
-                            syn_hist, axis=0)[:np.newaxis] * COMPARE_SYN_C)) - 1)[neg_idxs]
+                            syn_hist, axis=0)[:np.newaxis] * COMPARE_SYN_C)) - 1)[
+                            neg_idxs]
                         shots_mat[:, ~dst_cur_shots] = 0
 
                         self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
@@ -965,6 +957,17 @@ class BrainNN:
         """
         self.visualize = self._visualize_dict.get(vis_func_str,
                                                   self._default_visualize)
+
+        if vis_func_str == "None":
+            return
+        # Create visualization window
+        cv2.namedWindow(self._vis_window_name)
+        # To make sure it's in the viewable screen
+        cv2.moveWindow(self._vis_window_name, 0, 0)
+        assert len(self._vis_record) == 2, "RECORD_FLAG format must be [to_record, " \
+                                           "to_show_during_run]"
+        if self._vis_record[0]:
+            self._create_video_writer()
 
 
     def visualize_idle(self):
