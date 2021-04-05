@@ -99,4 +99,4 @@ def mnist_output_dist(epochs=8):
 
 
 if __name__ == '__main__':
-    print(mnist_train_evaluate(epochs=8))
+    print(fonts_trainer_evaluation(epochs=8))
