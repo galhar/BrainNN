@@ -538,13 +538,13 @@ def visualize_images_layers(model_file=None):
         ax.set_xticklabels([])
         ax.set_yticklabels([])
 
-    # Plot output
-    for i, s in enumerate(samples):
-        ax = fig.add_subplot(3, photos_n, i + 1 + 2 * photos_n)
-        output_img = get_layer_effect(s[0], model_file, 1)
-        plt.bar([i for i in range(photos_n)], output_img[:photos_n])
-        ax.title.set_text(f"{s[1]}")
-        ax.set_yticklabels([])
+    # # Plot output
+    # for i, s in enumerate(samples):
+    #     ax = fig.add_subplot(3, photos_n, i + 1 + 2 * photos_n)
+    #     output_img = get_layer_effect(s[0], model_file, 1)
+    #     plt.bar([i for i in range(photos_n)], output_img[:photos_n])
+    #     ax.title.set_text(f"{s[1]}")
+    #     ax.set_yticklabels([])
 
     plt.show()
 
@@ -578,5 +578,5 @@ def get_layer_effect(img, model_file, pop_num_to_check):
 
 
 if __name__ == '__main__':
-    search_bottelneck()
-    # visualize_images_layers('Fonts_task/NetSavedByHookEp-0(1).json')
+    # search_bottelneck()
+    visualize_images_layers('Fonts_task/NetSavedByHookEp-2(3).json')
