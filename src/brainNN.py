@@ -38,10 +38,9 @@ class BrainNN:
                                    'case it provides the learning rule'
     SYNAPSE_DECREASE_PROBABILITY = 'Probability for a synapse weight to DECREASE in ' \
                                    'case it provides the learning rule'
-    SYNAPSE_MEMORY_FACTOR = 'The synapses are updated according to material through ' \
-                            'them during previous steps. Thus the material each synapse' \
-                            ' remembers is the previous material multiplied by this ' \
-                            'factor, add to the current material passes through them'
+    SYNAPSE_MEMORY_WINDOW = 'The synapses are updated according to material through ' \
+                            'them during previous steps. This number states the number ' \
+                            'of previous steps to count as "shot lately"'
     SYNAPSE_INCREASE_FUNC = 'Function that gets (np array of the weights) and returns a' \
                             ' np array of addon to add to the weights. Operate on ' \
                             'weights that increases after an iteration.'
@@ -82,7 +81,7 @@ class BrainNN:
         SYNAPSE_SPACIAL_DISTANCE_FACTOR: 3,
         SYNAPSE_INCREASE_PROBABILITY: 0.8,
         SYNAPSE_DECREASE_PROBABILITY: 0.7,
-        SYNAPSE_MEMORY_FACTOR: 0.99,
+        SYNAPSE_MEMORY_WINDOW: 5,
         SYNAPSE_INCREASE_FUNC: lambda weights: np.minimum(weights / 2, 0.04,
                                                           np.exp(-weights)),
         SYNAPSE_DECREASE_FUNC: lambda neg_weights: np.maximum(neg_weights / 2, -0.04),
@@ -101,9 +100,10 @@ class BrainNN:
         self._thresh = self._conf_args[BrainNN.SHOOT_THRESHOLD]
         self._freeze = False
 
-        self._syn_memory_factor = self._conf_args[BrainNN.SYNAPSE_MEMORY_FACTOR]
+        self._syn_memory_window = self._conf_args[BrainNN.SYNAPSE_MEMORY_WINDOW]
         self._syn_inc_func = self._conf_args[BrainNN.SYNAPSE_INCREASE_FUNC]
         self._syn_inc_prob = self._conf_args[BrainNN.SYNAPSE_INCREASE_PROBABILITY]
+        # Both "dec" func and prob aren't in use
         self._syn_dec_func = self._conf_args[BrainNN.SYNAPSE_DECREASE_FUNC]
         self._syn_dec_prob = self._conf_args[BrainNN.SYNAPSE_DECREASE_PROBABILITY]
         self._validate_learning_functions()
@@ -185,8 +185,9 @@ class BrainNN:
         # This is what is added to the layers after each time step
         self._change_in_layers = BrainNN._create_layers_np_arrays(
             self._neurons_per_layer)
-        self._prev_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
         self._current_shots = BrainNN._create_layers_np_arrays(self._neurons_per_layer)
+        self._idle_time = BrainNN._create_layers_np_arrays(self._neurons_per_layer,
+                                                           np.inf)
 
         self._init_iins_idxs()
 
@@ -194,8 +195,8 @@ class BrainNN:
 
 
     @staticmethod
-    def _create_layers_np_arrays(neurons_per_layer):
-        return [[np.zeros(population_neurons[i]) for i in range(len(
+    def _create_layers_np_arrays(neurons_per_layer, value=0):
+        return [[np.full(population_neurons[i], value, np.float64) for i in range(len(
             population_neurons))] for population_neurons in neurons_per_layer]
 
 
@@ -224,20 +225,15 @@ class BrainNN:
         # Arranged in [ population list[ layer list[matrices from layer to other
         # ones:= [matrix, (popul_dst_idx, layer_dst_idx) ] ] ]
         self._synapses_matrices = []
-        self._syn_shots_hist = []
         for popul_idx, population_neurons in enumerate(self._neurons_per_layer):
             population_list = []
-            pop_hist_lst = []
             self._synapses_matrices.append(population_list)
-            self._syn_shots_hist.append(pop_hist_lst)
 
             popul_conns = conn_mat[popul_idx]
 
             for cur_layer_idx, layer_neurons_num in enumerate(population_neurons):
                 layer_list = []
-                layer_hist_lst = []
                 population_list.append(layer_list)
-                pop_hist_lst.append(layer_hist_lst)
 
                 # Normalize each neuron's output (depends on its corresponding rows)
                 normalize_vec = np.zeros((layer_neurons_num,))
@@ -265,7 +261,6 @@ class BrainNN:
 
                         if syn_mat is not None:
                             layer_list.append([syn_mat, idxs])
-                            layer_hist_lst.append([np.zeros_like(syn_mat), idxs])
                             normalize_vec += np.abs(layer_list[-1][0]).sum(axis=1)
                 # The IINs might be stronger than the excitatory
                 iins_start = self._IINs_start_per_popul[popul_idx]
@@ -699,14 +694,7 @@ class BrainNN:
         for popul_idx, popul_shots in enumerate(self._current_shots):
             for i in range(len(popul_shots)):
                 popul_shots[i].fill(0)
-                self._prev_shots[popul_idx][i].fill(0)
-
-        # Zero the synapses shots history matrices
-        for pop_i, pop_syns in enumerate(self._syn_shots_hist):
-            for l_i, l_syns in enumerate(pop_syns):
-                for syn_i, syn_hist in enumerate(l_syns):
-                    self._syn_shots_hist[pop_i][l_i][syn_i][0] = np.zeros_like(
-                        syn_hist[0])
+                self._idle_time[popul_idx][i].fill(np.inf)
 
         # Zero the visualization
         self._vis_counter = 0
@@ -792,6 +780,10 @@ class BrainNN:
                 self._current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >
                                                                      self._thresh)
                 cur_shots = self._current_shots[cur_popul_idx][cur_layer_idx]
+
+                # Set to -1, when adding 1 in the end of iteration it becomes 0
+                self._idle_time[cur_popul_idx][cur_layer_idx][cur_shots] = -1
+
                 cur_shots_idxs = np.nonzero(cur_shots)[0]
                 if cur_shots_idxs.any():
                     self.history[-1][0:0] = list(cur_shots_idxs + idxs_sum)
@@ -817,6 +809,8 @@ class BrainNN:
                 cur_layer += np.maximum(self._change_in_layers[cur_popul_idx][
                                             cur_layer_idx], -cur_layer)
                 self._change_in_layers[cur_popul_idx][cur_layer_idx] *= 0
+                # Update Idle time
+                self._idle_time[cur_popul_idx][cur_layer_idx] += 1
 
 
     def _update_weights(self):
@@ -825,12 +819,12 @@ class BrainNN:
               process of firing, as described in the doc.
         :return:
         """
-        syn_mem_fac = self._syn_memory_factor
+        syn_mem_wnd = self._syn_memory_window
         # Iterate over the layers
         for cur_pop_i, cur_popul in enumerate(self._layers):
             for cur_l_i in range(len(cur_popul)):
                 # Get the shots of the current layer's neurons, in the previous time step
-                cur_l_syns_hist = self._syn_shots_hist[cur_pop_i][cur_l_i]
+                src_idle_t = self._idle_time[cur_pop_i][cur_l_i]
 
                 # Get the matrices out of the current layer to other layers
                 mats_from_cur_l = self._synapses_matrices[cur_pop_i][cur_l_i]
@@ -839,56 +833,30 @@ class BrainNN:
                     matrix, dst_idxs = mat_data
                     INs_src, INs_dst = self._IINs_start_per_popul[cur_pop_i], \
                                        self._IINs_start_per_popul[dst_idxs[0]]
-                    syn_hist, dst_syn_hist_idxs = cur_l_syns_hist[idx]
 
-                    assert dst_syn_hist_idxs == dst_idxs
-
-                    src_cur_shots = self._current_shots[cur_pop_i][cur_l_i]
-                    dst_cur_shots = self._current_shots[dst_idxs[0]][dst_idxs[1]]
+                    dst_idle_t = self._idle_time[dst_idxs[0]][dst_idxs[1]]
 
                     # Don't change INs connections
                     matrix = matrix[:INs_src, :INs_dst]
-                    syn_hist = syn_hist[:INs_src, :INs_dst]
-                    src_cur_shots = src_cur_shots[:INs_src]
-                    dst_cur_shots = dst_cur_shots[:INs_dst]
+                    src_idle_t = src_idle_t[:INs_src]
+                    dst_idle_t = dst_idle_t[:INs_dst]
+
+                    # Catch every synapse between "lately shot" only 1 time: calculate
+                    # when the neurons are inside the window, and when they are on the
+                    # edge of the window, and update the synapse where one of it's
+                    # neurons is on the edge of the window. to avoid count it twice.
+                    src_in_wnd = src_idle_t < syn_mem_wnd
+                    dst_in_wnd = dst_idle_t < syn_mem_wnd
+                    src_edge_wnd = src_idle_t == syn_mem_wnd
+                    dst_edge_wnd = dst_idle_t == syn_mem_wnd
+
+                    shots_mat = np.outer(src_in_wnd, dst_edge_wnd) | np.outer(
+                        src_edge_wnd, dst_in_wnd)
 
                     # Most of the times te weights won't change:
-                    if dst_cur_shots.any():
-                        # who didn't previously shot get -1 to decrease if the dst neuron
-                        # shot anyway. That's why ( 2 * cur_layer_prev_shots - 1 ) to
-                        # make 1
-                        # to 1 and 0 to -1. The cur_layer_prev_shots is a moving
-                        # average of
-                        # previous shots. Above 0.5 will count as it shot, bellow and
-                        # equal
-                        # will count as it didn't shot; Strengthen only who really
-                        # contributed to the neuron
-
-                        # Iterate over syn_hist columns (each per dst neuron), only put
-                        # material where it goes into neurons who shot, in each column
-                        # only increase who are 2/3 of the max into this neuron,
-                        # otherwise decrease
-                        shots_mat = 2 * (syn_hist >=
-                                         (np.max(syn_hist, axis=0)[
-                                          :np.newaxis] * COMPARE_SYN_C)) - 1
-                        # Handle negative weights as well
-                        neg_idxs = (syn_hist < 0)
-                        shots_mat[neg_idxs] = (2 * (syn_hist <= (np.min(
-                            syn_hist, axis=0)[:np.newaxis] * COMPARE_SYN_C)) - 1)[
-                            neg_idxs]
-                        shots_mat[:, ~dst_cur_shots] = 0
-
+                    if shots_mat.any():
                         self._synapses_matrices[cur_pop_i][cur_l_i][idx][0][:INs_src,
                         :INs_dst] = self._update_synapses_matrix(shots_mat, matrix)
-
-                        # Zero material through changed synapses
-                        syn_hist[:, dst_cur_shots] = 0
-
-                    # Past shots will decrease. 0.99 do from 2 to 0.7 over 100 time
-                    # steps
-                    syn_hist *= syn_mem_fac
-                    # Add current material through synapse
-                    syn_hist[src_cur_shots, :] += matrix[src_cur_shots, :]
 
 
     def _update_synapses_matrix(self, shots_mat, cur_synapses_mat):
@@ -901,10 +869,7 @@ class BrainNN:
         shots_mat[ones_idxs] *= (
                 np.random.uniform(
                     size=(np.count_nonzero(ones_idxs))) < self._syn_inc_prob)
-        # Determine who will get decreased by probability
-        shots_mat[neg_ones_idxs] *= (
-                np.random.uniform(
-                    size=(np.count_nonzero(neg_ones_idxs))) < self._syn_dec_prob)
+
 
         # abs so We'll decrease only according to the learning rule, which is shots_mat
         weighted_synapses_matrix = np.multiply(shots_mat, np.abs(cur_synapses_mat))
@@ -929,7 +894,7 @@ class BrainNN:
     def _create_update_mat(self, weighted_syn_mat):
         return np.where(weighted_syn_mat > 0,
                         self._syn_inc_func(weighted_syn_mat),
-                        self._syn_dec_func(weighted_syn_mat))
+                        0)
 
 
     def set_increase_func(self, increase_func):
@@ -1182,7 +1147,7 @@ class BrainNN:
 
             for cur_layer_idx, cur_layer in enumerate(population_neurons):
                 if not (self._current_shots[popul_idx][cur_layer_idx].any() or
-                        self._prev_shots[popul_idx][cur_layer_idx].any()):
+                        (self._idle_time[popul_idx][cur_layer_idx] <= 1).any()):
                     continue
 
                 neurons_gap = layer_gap_y // (len(cur_layer) + 1)
@@ -1193,7 +1158,7 @@ class BrainNN:
                     # If this neuron doesn't shoot and it didn't shot last round (and it
                     # needs to be reset in the frame) don't draw it
                     if not shot_flag:
-                        if not self._prev_shots[popul_idx][cur_layer_idx][neuron_idx]:
+                        if self._idle_time[popul_idx][cur_layer_idx][neuron_idx] > 1:
                             continue
 
                     location = self._calc_location(cur_layer_idx, layer_gap_x,

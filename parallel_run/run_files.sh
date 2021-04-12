@@ -2,7 +2,7 @@
 # Gal Harari
 
 for i in $(eval echo {$1..$2}) ;do
-  sbatch -c1 --mem=500m --time=720 --killable single_run.sh $i
+  sbatch -c1 --mem=500m --time=1000 --killable single_run.sh $i
 done
 #wait
 
