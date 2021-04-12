@@ -55,7 +55,7 @@ def create_trainer(data_loader, epochs=17):
     return net, trainer
 
 
-def fonts_trainer_evaluation(epochs=8):
+def fonts_trainer_evaluation(epochs=25):
     print("[*] Creating the trainer")
     data_loader = FontDataLoader(TRAIN_DIR, shuffle=True)
     net, trainer = create_trainer(data_loader, epochs)
