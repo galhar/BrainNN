@@ -589,7 +589,7 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
     for i, l in enumerate(classes):
         if i > rows * cols:
             break
-        ax = fig.add_subplot(rows, cols,start_row * cols +  i + 1)
+        ax = fig.add_subplot(rows, cols, start_row * cols + i + 1)
         output_img = get_neuron_stimulus(model_file, pop_num_to_check, l)
         plt.imshow(output_img)
         ax.title.set_text(f"{l}")
@@ -605,11 +605,12 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
 def visualize_output_stimulus_over_models(model_names):
     n = len(model_names)
     fig = plt.figure()
-    fig.suptitle("Stimulus for each Output neuron over epochs")
+    fig.suptitle("Stimulus for each Output neuron over epochs  25-29")
     for i, model_name in enumerate(model_names):
-        visualize_output_stimulus(model_name, fig, [n,i])
+        visualize_output_stimulus(model_name, fig, [n, i])
 
     plt.show()
+
 
 def get_layer_effect(img, model_file, pop_num_to_check):
     """
@@ -676,9 +677,20 @@ def get_neuron_stimulus(model_file, pop_num_to_check, output_n):
 
 if __name__ == '__main__':
     # search_bottelneck()
-    visualize_output_stimulus_over_models(['Fonts_task/NetSavedByHookEp-0.json',
-                                           'Fonts_task/NetSavedByHookEp-1.json',
-                                           'Fonts_task/NetSavedByHookEp-2.json',
-                                           'Fonts_task/NetSavedByHookEp-3.json',
-                                           'Fonts_task/NetSavedByHookEp-4.json'
-                                           ])
+    visualize_output_stimulus_over_models([
+        # 'Fonts_task/NetSavedByHookEp-0(0).json',
+        # 'Fonts_task/NetSavedByHookEp-1(0).json',
+        # 'Fonts_task/NetSavedByHookEp-2(0).json',
+        # 'Fonts_task/NetSavedByHookEp-3(0).json',
+        # 'Fonts_task/NetSavedByHookEp-4(0).json',
+        # 'Fonts_task/NetSavedByHookEp-5(0).json',
+        # 'Fonts_task/NetSavedByHookEp-6(0).json',
+        # 'Fonts_task/NetSavedByHookEp-7(0).json',
+        # 'Fonts_task/NetSavedByHookEp-8(0).json',
+        # 'Fonts_task/NetSavedByHookEp-9(0).json',
+        'Fonts_task/NetSavedByHookEp-10(0).json',
+        'Fonts_task/NetSavedByHookEp-11(0).json',
+        'Fonts_task/NetSavedByHookEp-12(0).json',
+        'Fonts_task/NetSavedByHookEp-13(0).json',
+        'Fonts_task/NetSavedByHookEp-14(0).json',
+    ])

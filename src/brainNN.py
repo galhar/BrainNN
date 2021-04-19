@@ -916,6 +916,7 @@ class BrainNN:
             cur_synapses_mat)
         updated_mat = addon_mat + cur_synapses_mat
 
+        # return updated_mat
         # NOTICE! We assume here that the synapses change functions can't change the
         # weights sign, otherwise we would have zero what exceeded from the original value
 
