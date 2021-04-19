@@ -12,7 +12,7 @@ SAVE_SUFFIX = '.pkl'
 RECORD_SAVE_NAME = 'visualization_video'
 
 # Magic numbers:
-NORM_C = 1 / 40
+NORM_C = 1 / 6
 COMPARE_SYN_C = 2 / 3
 
 
@@ -274,8 +274,8 @@ class BrainNN:
                     INs_dst = self._IINs_start_per_popul[idxs[0]]
 
                     # Don't change INs connections
-                    norm_mat[INs_src:, :] = self._thresh
-                    norm_mat[:, INs_dst:] = self._thresh
+                    norm_mat[INs_src:, :] = self._thresh * NORM_C
+                    norm_mat[:, INs_dst:] = self._thresh * NORM_C
 
                     layer_list[i][0] = self._thresh * NORM_C * mat / norm_mat
 
@@ -777,7 +777,7 @@ class BrainNN:
 
         for cur_popul_idx, cur_popul in enumerate(self._layers):
             for cur_layer_idx, cur_layer in enumerate(cur_popul):
-                self._current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >
+                self._current_shots[cur_popul_idx][cur_layer_idx] = (cur_layer >=
                                                                      self._thresh)
                 cur_shots = self._current_shots[cur_popul_idx][cur_layer_idx]
 

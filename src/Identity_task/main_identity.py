@@ -18,7 +18,7 @@ TEST_DIR = os.path.join(parentdir, 'data/Font images/Calibri Font images/')
 
 
 def create_trainer(epochs=17):
-    data_loader = IdentityDataLoader()
+    data_loader = IdentityDataLoader(amp=1)
     inp_len = len(data_loader.samples[0])
     output_shape = len(data_loader.classes_neurons)
 
@@ -39,13 +39,11 @@ def create_trainer(epochs=17):
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
-                          BrainNN.IINS_STRENGTH_FACTOR: iins_factor,
-                          BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=14, sharp=True,
-                                 dec_prob=1, inc_prob=1)
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=10, sharp=True,
+                                 dec_prob=1, inc_prob=0.3)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 

@@ -222,7 +222,7 @@ class DefaultOptimizer(OptimizerBase):
         self._sharp = sharp
         lim_fac = 0.9
         if sharp:
-            lim_fac = 0.99
+            lim_fac = 0.9999
         self._inj_lim = lim_fac * self._net.get_shot_threshold()
 
 
