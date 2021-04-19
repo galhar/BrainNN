@@ -279,8 +279,11 @@ class BrainNN:
                     INs_dst = self._IINs_start_per_popul[idxs[0]]
 
                     # Don't change INs connections
-                    norm_mat[INs_src:, :] = self._thresh
-                    norm_mat[:, INs_dst:] = self._thresh
+                    norm_mat[INs_src:, :] = self._thresh * NORM_C
+                    norm_mat[:, INs_dst:] = self._thresh * NORM_C
+
+                    # Avoid divide by zero (happens where mat will also be zero)
+                    norm_mat[norm_mat == 0] = 1
 
                     layer_list[i][0] = self._thresh * NORM_C * mat / norm_mat
 

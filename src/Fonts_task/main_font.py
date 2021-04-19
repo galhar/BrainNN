@@ -27,12 +27,11 @@ def create_trainer(data_loader, epochs=17):
     white = True
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
-    nodes_details = [img_len, 200, output_shape]
-    IINs_details = [(1,), (1,), (1,)]
-    winners = [1, 10, 1]
-    conn_mat = [[fc, fc, None],
-                [None, fc, fc],
-                [None, fc, fc]]
+    nodes_details = [img_len, output_shape]
+    IINs_details = [(4,), (4,)]
+    winners = [1, 1]
+    conn_mat = [[fc, fc],
+                [None, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     vis_str = 'None'
@@ -49,8 +48,8 @@ def create_trainer(data_loader, epochs=17):
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=10, sharp=True,
-                                 inc_prob=0.3, dec_prob=0.4)
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
+                                 inc_prob=0.9, dec_prob=0.9)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
@@ -68,12 +67,12 @@ def fonts_trainer_evaluation(epochs=8):
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
-def mnist_train_evaluate(epochs=8):
+def mnist_train_evaluate(epochs=5):
     print("[*] Creating the trainer")
     data_loader = MNISTDataLoader(small=True, shuffle=True, amp=0.03)
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, MNISTDataLoader(
-        small=True, batched=False, amp=0.1), vis_last_ep=False, save=True))
+        small=True, batched=False, amp=0.03), vis_last_ep=False, save=True))
     trainer.register_hook(
         lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
     print("[*] Training")
@@ -99,4 +98,4 @@ def mnist_output_dist(epochs=8):
 
 
 if __name__ == '__main__':
-    print(mnist_train_evaluate(epochs=8))
+    print(mnist_train_evaluate())

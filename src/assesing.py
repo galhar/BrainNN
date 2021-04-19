@@ -250,6 +250,6 @@ def dummy_3d_func():
 if __name__ == '__main__':
     # average_one_checks(dummy_3d_func, runs=2)
     load_path = ' Accuracy Over Epoches data 11_23_20 14_07.json'
-    check_func = mnist_output_dist
+    check_func = mnist_train_evaluate
     setattr(check_func, 'title', 'MNIST output dist, 2 layers')
-    average_over_nets(check_func, iterations=5)  # scatter=True, load=load_path)
+    average_over_nets(check_func, iterations=11)  # scatter=True, load=load_path)

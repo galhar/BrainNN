@@ -209,9 +209,9 @@ class DefaultOptimizer(OptimizerBase):
 
     def __init__(self, net, sample_reps, epochs, sharp=False, inc_prob=0.7,
                  dec_prob=0.2):
-        inc_func = lambda weights: np.minimum(np.minimum(weights / 2,
-                                                         np.exp(-weights)), 0.2)
-        dec_func = lambda neg_weights: np.maximum(neg_weights / 2, -0.2)
+        inc_func = lambda weights: np.minimum(np.minimum(weights / 10,
+                                                         np.exp(-weights)), 0.04)
+        dec_func = lambda neg_weights: np.maximum(neg_weights / 10, -0.04)
         OptimizerBase.__init__(self, net, inc_func, dec_func, inc_prob, dec_prob,
                                sample_reps, epochs)
 

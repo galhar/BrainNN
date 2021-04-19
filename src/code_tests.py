@@ -533,7 +533,7 @@ def visualize_images_layers(model_file=None):
     for i, s in enumerate(samples):
         ax = fig.add_subplot(3, photos_n, i + 1 + photos_n)
         output_img = get_layer_effect(s[0], model_file, 0)
-        plt.imshow(output_img.reshape(-1,10))
+        plt.imshow(output_img.reshape(-1, 10))
         ax.title.set_text(f"RF {s[1]}")
         ax.set_xticklabels([])
         ax.set_yticklabels([])
@@ -548,6 +548,68 @@ def visualize_images_layers(model_file=None):
 
     plt.show()
 
+
+def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
+    """
+
+    :param model_file:
+    :param fig:
+    :param out_rows: rows involved in the bigger picture into where this function
+    inserts its images. If not None it means we only have 1 row. else in shape of [max
+    rows, cur_row]
+    :return:
+    """
+    data_loader = MNISTDataLoader(small=True)
+    classes = data_loader.classes_neurons
+    cls_n = len(classes)
+    pop_num_to_check = 0
+
+    max_cols = 10
+    # For cases we want to insert a row in bigger picture
+    start_row = 0
+    # If we
+    if out_rows is None:
+        max_rows = 5
+        rows = np.min([np.ceil(cls_n / max_cols), max_rows])
+        if rows == 1:
+            cols = cls_n
+        else:
+            cols = max_cols
+    else:
+        rows = out_rows[0]
+        start_row = out_rows[1]
+        cols = np.min([cls_n, max_cols])
+
+    # PLOT
+    if fig is None:
+        fig = plt.figure()
+        fig.suptitle("Stimulus for each Output neuron")
+
+    # Plot RF layer
+    for i, l in enumerate(classes):
+        if i > rows * cols:
+            break
+        ax = fig.add_subplot(rows, cols,start_row * cols +  i + 1)
+        output_img = get_neuron_stimulus(model_file, pop_num_to_check, l)
+        plt.imshow(output_img)
+        ax.title.set_text(f"{l}")
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+    if fig is None:
+        plt.show()
+    else:
+        return fig
+
+
+def visualize_output_stimulus_over_models(model_names):
+    n = len(model_names)
+    fig = plt.figure()
+    fig.suptitle("Stimulus for each Output neuron over epochs")
+    for i, model_name in enumerate(model_names):
+        visualize_output_stimulus(model_name, fig, [n,i])
+
+    plt.show()
 
 def get_layer_effect(img, model_file, pop_num_to_check):
     """
@@ -577,6 +639,46 @@ def get_layer_effect(img, model_file, pop_num_to_check):
     return output_img
 
 
+def get_neuron_stimulus(model_file, pop_num_to_check, output_n):
+    """
+    if the layer to check will output something that isn't an image, it will output a
+    1D vec which is it, without change.
+    :param img:
+    :param model_file:
+    :param pop_num_to_check:
+    :return:
+    """
+
+    model = BrainNN.load_model(name=model_file)
+    mat = model._synapses_matrices[pop_num_to_check][0][1][0]
+    src_IINs = model._IINs_start_per_popul[0]
+    dst_IINs = model._IINs_start_per_popul[1]
+    layer_mat_no_IINs = mat[:src_IINs, :dst_IINs]
+
+    # Calculate the relevant input neurons
+    total_mat = layer_mat_no_IINs
+    for i in range(pop_num_to_check, 0, -1):
+        mat = model._synapses_matrices[i][0][1][0]
+        src_IINs = model._IINs_start_per_popul[0]
+        dst_IINs = model._IINs_start_per_popul[1]
+        layer_mat_no_IINs = mat[:src_IINs, :dst_IINs]
+        total_mat = layer_mat_no_IINs @ total_mat
+
+    stimulus = total_mat[:, output_n]
+    img_size = int(np.sqrt(stimulus.shape[0]))
+    if img_size * img_size == stimulus.shape[0]:
+        stim_img = stimulus.reshape((img_size, img_size))
+    else:
+        # Here it means it's just a layer without image meaning
+        stim_img = stimulus
+    return stim_img
+
+
 if __name__ == '__main__':
     # search_bottelneck()
-    visualize_images_layers('Fonts_task/NetSavedByHookEp-2(3).json')
+    visualize_output_stimulus_over_models(['Fonts_task/NetSavedByHookEp-0.json',
+                                           'Fonts_task/NetSavedByHookEp-1.json',
+                                           'Fonts_task/NetSavedByHookEp-2.json',
+                                           'Fonts_task/NetSavedByHookEp-3.json',
+                                           'Fonts_task/NetSavedByHookEp-4.json'
+                                           ])
