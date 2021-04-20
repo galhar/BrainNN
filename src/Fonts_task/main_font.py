@@ -28,7 +28,7 @@ def create_trainer(data_loader, epochs=17):
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
     nodes_details = [img_len, output_shape]
-    IINs_details = [(4,), (4,)]
+    IINs_details = [(1,), (1,)]
     winners = [0, 1]
     conn_mat = [[fc, fc],
                 [None, fc]]
@@ -44,7 +44,7 @@ def create_trainer(data_loader, epochs=17):
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     if LOAD:
-        net = BrainNN.load_model(configuration_args, "NetSavedByHookEp-14.json")
+        net = BrainNN.load_model(configuration_args, "NetSavedByHookEp-14(0).json")
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
@@ -69,7 +69,7 @@ def fonts_trainer_evaluation(epochs=20):
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
-def mnist_train_evaluate(epochs=15):
+def mnist_train_evaluate(epochs=40):
     print("[*] Creating the trainer")
     data_loader = MNISTDataLoader(small=True, shuffle=True, amp=0.03)
     net, trainer = create_trainer(data_loader, epochs)
