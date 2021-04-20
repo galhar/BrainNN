@@ -13,7 +13,7 @@ from src.assesing import average_over_nets
 from src.utils.general_utils import load_json, save_json
 from single_run import SAVE_PATH, SAVE_NAME
 
-LOAD = True
+LOAD = False
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
