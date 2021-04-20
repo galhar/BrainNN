@@ -605,7 +605,7 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
 def visualize_output_stimulus_over_models(model_names):
     n = len(model_names)
     fig = plt.figure()
-    fig.suptitle("Stimulus for each Output neuron over epochs  25-29")
+    fig.suptitle("Stimulus for each Output neuron over epochs  65-69")
     for i, model_name in enumerate(model_names):
         visualize_output_stimulus(model_name, fig, [n, i])
 
@@ -678,19 +678,9 @@ def get_neuron_stimulus(model_file, pop_num_to_check, output_n):
 if __name__ == '__main__':
     # search_bottelneck()
     visualize_output_stimulus_over_models([
-        # 'Fonts_task/NetSavedByHookEp-0(0).json',
-        # 'Fonts_task/NetSavedByHookEp-1(0).json',
-        # 'Fonts_task/NetSavedByHookEp-2(0).json',
-        # 'Fonts_task/NetSavedByHookEp-3(0).json',
-        # 'Fonts_task/NetSavedByHookEp-4(0).json',
-        # 'Fonts_task/NetSavedByHookEp-5(0).json',
-        # 'Fonts_task/NetSavedByHookEp-6(0).json',
-        # 'Fonts_task/NetSavedByHookEp-7(0).json',
-        # 'Fonts_task/NetSavedByHookEp-8(0).json',
-        # 'Fonts_task/NetSavedByHookEp-9(0).json',
-        'Fonts_task/NetSavedByHookEp-10(0).json',
-        'Fonts_task/NetSavedByHookEp-11(0).json',
-        'Fonts_task/NetSavedByHookEp-12(0).json',
-        'Fonts_task/NetSavedByHookEp-13(0).json',
-        'Fonts_task/NetSavedByHookEp-14(0).json',
+        'Fonts_task/NetSavedByHookEp-35.json',
+        'Fonts_task/NetSavedByHookEp-36.json',
+        'Fonts_task/NetSavedByHookEp-37.json',
+        'Fonts_task/NetSavedByHookEp-38.json',
+        'Fonts_task/NetSavedByHookEp-39.json',
     ])
