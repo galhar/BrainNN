@@ -337,38 +337,39 @@ class BrainNN:
                             layer_to_conn_idx, mean, popul_idx, popul_idx_to_connect,
                             std):
         syn_mat = np.random.normal(mean, std, (layer_neurons_num, l_to_conn_neurons_n))
-        extory_num = self._IINs_start_per_popul[popul_idx]
+        src_extory_num = self._IINs_start_per_popul[popul_idx]
+        dst_extory_num = self._IINs_start_per_popul[popul_idx_to_connect]
 
         # Prepare into INs connections
-        syn_mat[:, extory_num:] = self._thresh
+        syn_mat[:, dst_extory_num:] = self._thresh
         # Allow inhibition
-        syn_mat[extory_num:] = -self._thresh
+        syn_mat[src_extory_num:] = -self._thresh
 
         if layer_to_conn_idx == cur_layer_idx and popul_idx_to_connect == popul_idx:
             # Here it means the layers are the same layer
             # Create only connections to and from the IINs
             winners_n = self._winners_per_layer[popul_idx]
-            syn_mat[:extory_num, :extory_num] = 0
+            syn_mat[:src_extory_num, :dst_extory_num] = 0
             if winners_n == 0:
                 return np.zeros_like(syn_mat)
 
-            syn_mat[:extory_num, extory_num:] /= winners_n
+            syn_mat[:src_extory_num, dst_extory_num:] /= winners_n
             return syn_mat
 
         # Here it means those are 2 different layers
         # In the same population create only between nodes
         if popul_idx_to_connect == popul_idx:
-            inner_non_IINS_mat = syn_mat[:extory_num, :extory_num]
+            inner_non_IINS_mat = syn_mat[:src_extory_num, :dst_extory_num]
             idxs_to_delete_in_non_IIN_part = ~np.eye(inner_non_IINS_mat.shape[0],
                                                      dtype=bool)
             # Delete all but diagonal in the non IINs part of the matrix
-            syn_mat[:extory_num, :extory_num][
+            syn_mat[:src_extory_num, :dst_extory_num][
                 idxs_to_delete_in_non_IIN_part] = 0
 
         # Prevent IINs of one layer to shoot to another
-        syn_mat[extory_num:, :] = 0
+        syn_mat[src_extory_num:, :] = 0
         # Prevent exitatory of one layer to shoot into another's IINs
-        syn_mat[:, self._IINs_start_per_popul[popul_idx_to_connect]:] = 0
+        syn_mat[:, dst_extory_num:] = 0
 
         # Weaken links between far populations, and strength inner
         # population connections
@@ -391,7 +392,7 @@ class BrainNN:
             mult_mat = np.ones(size)
             for i in range(size[0]):
                 for j in range(size[1]):
-                    if i < extory_num and j < extory_num:
+                    if i < src_extory_num and j < dst_extory_num:
                         mult_mat[i, j] *= spacial_dist_fac ** (
                                 1 - distance(i, j, rows, cols))
 
