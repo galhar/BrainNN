@@ -24,28 +24,27 @@ def create_trainer(epochs=17):
 
     fc = [BrainNN.FC]
     nodes_details = [inp_len, output_shape * 2, output_shape]
-    IINs_details = [(4, ), (4, ), (4, )]
+    IINs_details = [(1,), (1,), (1,)]
     conn_mat = [[fc, fc, None],
                 [None, fc, fc],
                 [None, fc, fc]]
+    winners = [0, 2, 1]
     # nodes_details = [inp_len, output_shape]
     # IINs_details = [(4, ),  (4, )]
     # conn_mat = [[fc, fc],
     #             [None, fc]]
 
     vis_str = 'None'
-    iins_factor = 20
-    into_iins_factor = 20
+
     configuration_args = {BrainNN.NODES_DETAILS: nodes_details,
                           BrainNN.IINS_PER_LAYER_NUM: IINs_details,
                           BrainNN.CONNECTIONS_MAT: conn_mat,
-                          BrainNN.IINS_STRENGTH_FACTOR: iins_factor,
-                          BrainNN.INTO_IINS_STRENGTH_FACTOR: into_iins_factor,
+                          BrainNN.WINNERS_PER_LAYER: winners,
                           BrainNN.VISUALIZATION_FUNC_STR: vis_str}
 
     net = BrainNN(configuration_args)
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=14, sharp=True,
-                                 dec_prob=1, inc_prob=1)
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=10, sharp=True,
+                                 inc_prob=0.9, dec_prob=0.0)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
@@ -53,7 +52,8 @@ def create_trainer(epochs=17):
 def identity_evaluation(epochs=6):
     net, trainer = create_trainer(epochs)
     trainer.register_hook(
-        lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=False),
+        lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=False,
+                                                                    amp=70),
                                         vis_last_ep=True))
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
@@ -61,4 +61,4 @@ def identity_evaluation(epochs=6):
 
 
 if __name__ == '__main__':
-    print(identity_evaluation(epochs=4))
+    print(identity_evaluation(epochs=1))
