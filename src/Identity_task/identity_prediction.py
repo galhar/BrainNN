@@ -31,6 +31,13 @@ def get_tripled_perm_rep(i, n):
     return rep
 
 
+def get_paired_covered_perm_rep(i, n):
+    rep = np.zeros((n,))
+    rep[i] = 1
+    rep[np.random.choice([j for j in range(n) if j != i])] = 1
+    return rep
+
+
 class IdentityDataLoader(ClassesDataLoader):
 
     def __init__(self, batched=False, shuffle=True, noise_std=0, amp=30):
