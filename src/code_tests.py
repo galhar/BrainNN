@@ -559,8 +559,10 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
     rows, cur_row]
     :return:
     """
-    data_loader = MNISTDataLoader(small=True)
-    classes = data_loader.classes_neurons
+    # data_loader = MNISTDataLoader(small=True)
+    # classes = data_loader.classes_neurons
+    np.random.seed(2)
+    classes = np.random.choice([i for i in range(62)], (6,))
     cls_n = len(classes)
     pop_num_to_check = 0
 
@@ -592,9 +594,24 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
         ax = fig.add_subplot(rows, cols, start_row * cols + i + 1)
         output_img = get_neuron_stimulus(model_file, pop_num_to_check, l)
         plt.imshow(output_img)
-        ax.title.set_text(f"{l}")
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
+        # ax.title.set_text(f"{l}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # Write epochs
+        if i == 0:
+            ep_n = extract_ep_from_name(model_file)
+            if ep_n is None:
+                continue
+            if start_row == 0:
+                # Write the title "Epochs"
+                #plt.rc('text', usetex=True)
+                #fig.text(0.25,0.75,r"$\underline{Epoch}$")
+
+                #ax.set_ylabel(r"$\underline{Epoch}$\n\n %s" % ep_n,rotation=0)
+                #continue
+                pass
+            ax.set_ylabel("%d   " % (ep_n + 1),rotation=0, labelpad=4, fontsize=12,
+                          loc="center")
 
     if fig is None:
         plt.show()
@@ -602,13 +619,22 @@ def visualize_output_stimulus(model_file=None, fig=None, out_rows=None):
         return fig
 
 
+def extract_ep_from_name(name):
+    ep_i = name.find("Ep") + len("Ep-")
+    if ep_i == len("Ep-"):
+        return None
+    dot_i = name.find(".")
+    return int(name[ep_i:dot_i])
+
+
 def visualize_output_stimulus_over_models(model_names):
     n = len(model_names)
     fig = plt.figure()
-    fig.suptitle("Stimulus for each Output neuron over epochs  65-69")
+    fig.suptitle("Weights Into Output Neurons in 2-Layer Instant Model")
     for i, model_name in enumerate(model_names):
         visualize_output_stimulus(model_name, fig, [n, i])
 
+    fig.tight_layout()
     plt.show()
 
 
@@ -678,9 +704,8 @@ def get_neuron_stimulus(model_file, pop_num_to_check, output_n):
 if __name__ == '__main__':
     # search_bottelneck()
     visualize_output_stimulus_over_models([
-        'Fonts_task/NetSavedByHookEp-35.json',
-        'Fonts_task/NetSavedByHookEp-36.json',
-        'Fonts_task/NetSavedByHookEp-37.json',
-        'Fonts_task/NetSavedByHookEp-38.json',
-        'Fonts_task/NetSavedByHookEp-39.json',
+        'Fonts_task/Fonts_results/NetSavedEp-0.json',
+        'Fonts_task/Fonts_results/NetSavedEp-2.json',
+        'Fonts_task/Fonts_results/NetSavedEp-4.json',
+        'Fonts_task/Fonts_results/NetSavedEp-6.json'
     ])

@@ -27,11 +27,12 @@ def create_trainer(data_loader, epochs=17):
     white = True
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
-    nodes_details = [img_len, output_shape]
-    IINs_details = [(1,), (1,)]
+    nodes_details = [img_len, 500, output_shape]
+    IINs_details = [(1,), (100,), (1,)]
     winners = [0, 1]
-    conn_mat = [[fc, fc],
-                [None, fc]]
+    conn_mat = [[fc, fc, fc],
+                [None, fc, fc],
+                [None, fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
     spacial_dist_fac = 1.01
     vis_str = 'None'
@@ -48,33 +49,34 @@ def create_trainer(data_loader, epochs=17):
     else:
         net = BrainNN(configuration_args)
     net.visualize_idle()
-    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=11, sharp=True,
-                                 inc_prob=0.9, dec_prob=0.0)
+    optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=6, sharp=True,
+                                 inc_prob=1.0, dec_prob=0.0)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
 
-def fonts_trainer_evaluation(epochs=20):
+def fonts_trainer_evaluation(epochs=15):
     print("[*] Creating the trainer")
     data_loader = FontDataLoader(TRAIN_DIR, shuffle=True)
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, FontDataLoader(
-        TEST_DIR, batched=False, noise_std=2 * 1/4), vis_last_ep=False, save=True))
-    trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
-    trainer.register_hook(
-        lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
+        TEST_DIR, batched=False, noise_std=0 * 2 * 1 / 4), vis_last_ep=False, save=False))
+    # trainer.register_hook(lambda trainer: SaveByEvalHook(trainer, req_acc=70))
+    # trainer.register_hook(
+    #     lambda trainer: SaveHook(trainer, save_name="Fonts_results/NetSaved",
+    #     save_after=1, overwrite=False))
     print("[*] Training")
     trainer.train()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 
 
-def mnist_train_evaluate(epochs=40):
+def mnist_train_evaluate(epochs=20):
     print("[*] Creating the trainer")
     data_loader = MNISTDataLoader(small=True, shuffle=True, amp=0.03)
     net, trainer = create_trainer(data_loader, epochs)
     trainer.register_hook(lambda trainer: ClassesEvalHook(trainer, MNISTDataLoader(
-        small=True, batched=False, amp=0.03), vis_last_ep=False, save=True))
+        small=True, batched=False, amp=0.03), vis_last_ep=False, save=False))
     trainer.register_hook(
         lambda trainer: SaveHook(trainer, save_after=1, overwrite=False))
     print("[*] Training")
@@ -100,4 +102,4 @@ def mnist_output_dist(epochs=8):
 
 
 if __name__ == '__main__':
-    print(mnist_train_evaluate())
+    print(fonts_trainer_evaluation())

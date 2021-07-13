@@ -7,7 +7,7 @@ from src.binary_encoding_task.main_binary import trainer_evaluation, \
 from src.Identity_task.main_identity import identity_evaluation
 from src.Fonts_task.main_font import fonts_trainer_evaluation, mnist_train_evaluate, \
     mnist_output_dist
-from src.utils.general_utils import save_json, load_json
+from src.utils.general_utils import save_json, load_json, lighten_color, update_prop
 
 import numpy as np
 import time
@@ -18,6 +18,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerLine2D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
@@ -166,6 +167,8 @@ def describe(titles, iterations_vec, scatter):
     # mats (require a 3D plot) of an array of 1D arrays (requires a regular 2D plot)
     if len(dim(iterations_vec)) > 2:
         is_3D = True
+        # Cancel 3d plots -
+        return
 
     if is_3D:
         x = np.arange(len(iterations_vec[0][0]))
@@ -212,7 +215,12 @@ def describe(titles, iterations_vec, scatter):
                         [avg[i][j] + std[i][j], avg[i][j] - std[i][j]], marker="_")
     else:
         # average + std:
-        ax.errorbar(x, avg, std)
+        ax.errorbar(x, avg, ecolor='k',yerr=std, capthick=1, capsize=3)
+        plt.xticks(x, [l + 1 for l in x])
+        plt.annotate('%0.2f' % avg[-1], xy=(x[-1], avg[-1]), xytext=(3, -3),
+                     xycoords='data', textcoords='offset points')
+        plt.annotate('%0.2f' % avg[0], xy=(x[0], avg[0]), xytext=(-30, 0),
+                     xycoords='data', textcoords='offset points')
 
     ax.set_title(titles.get('title', ''))
     ax.set_xlabel(titles.get('x_label', ''))
@@ -247,9 +255,79 @@ def dummy_3d_func():
     return np.reshape(np.arange(13 * 5), (13, 5))
 
 
+def combine_plots(load_files, labels, colors, title="", x_label="", y_label=""):
+    plots_data = []
+    for file_name in load_files:
+        iterations_vec = load_json(DATA_PATH + file_name)
+
+        # the function returns some vecs of records in one list. Thus
+        # iteration_vec looks like: [<some_vecs_of_records_iter_1>,
+        # <some_vecs_of_records_iter_2>,...]
+        for i in range(len(iterations_vec[0])):
+            cur_data = [net_data[i] for net_data in iterations_vec]
+            if len(dim(cur_data)) > 2:
+                # Cancel 3d plots -
+                continue
+            plots_data.append(cur_data)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for i, plt_data in enumerate(plots_data):
+        x = np.arange(len(plt_data[0]))
+        avg = np.mean(plt_data, axis=0)
+        std = np.std(plt_data, axis=0)
+        color = colors[i]
+
+        plt.plot(x, avg, label=labels[i], color=color, marker='o', markersize=3)
+        std_edge_c, std_reg_c = lighten_color(color, 0.3), lighten_color(color, 0.05)
+        plt.fill_between(x, avg - std, avg + std, facecolor=std_reg_c, alpha=1.0,
+                         edgecolor=std_edge_c, linewidth=1, linestyle='dashed')
+
+        # ax.errorbar(x, avg, ecolor='k', yerr=std, capthick=1, capsize=3, label=labels[
+        #     i], c=colors[i])
+        plt.xticks(x, [l + 1 for l in x])
+        plt.annotate('%0.2f' % avg[-1], xy=(x[-1], avg[-1]), xytext=(3, -5 + (1-i)*5),
+                     xycoords='data', textcoords='offset points', c=colors[i])
+        plt.annotate('%0.2f' % avg[0], xy=(x[0], avg[0]), xytext=(-30, 0),
+                     xycoords='data', textcoords='offset points', c=colors[i])
+
+    # Remove errorbars from the legend
+    # get handles
+    # handles, labels = ax.get_legend_handles_labels()
+    # # remove the errorbars
+    # handles = [h[0] for h in handles]
+    # # use them in the legend
+    # ax.legend(handles, labels, loc='upper right', numpoints=1)
+
+    if len(plots_data) > 1:
+        plt.legend(handler_map={plt.Line2D: HandlerLine2D(update_func=update_prop)},
+                   loc='upper right')
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
+    plt.show()
+
+
+
+
+
 if __name__ == '__main__':
-    # average_one_checks(dummy_3d_func, runs=2)
-    load_path = ' Accuracy Over Epoches data 11_23_20 14_07.json'
-    check_func = mnist_output_dist
-    setattr(check_func, 'title', 'MNIST output dist, 2 layers')
-    average_over_nets(check_func, iterations=5)  # scatter=True, load=load_path)
+    load_path = 'Fonts accuracy over 10 nets, 2 layers, with decrease  records ' \
+                '07_07_21 02_10.json'
+    check_func = fonts_trainer_evaluation
+    setattr(check_func, 'title', 'Fonts accuracy over 10 nets, 2 layers, low sample rep')
+    setattr(check_func, 'x_label', 'Epochs')
+    setattr(check_func, 'y_label', 'Accuracy')
+    average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)
+    # data_files = [
+    #     #"Fonts accuracy over 10 nets, 2 layers 30 ep  records 07_09_21 01_28.json",
+    #     "Fonts accuracy over 10 nets, 2 layers, with decrease  records 07_07_21 02_10.json"
+    # ]
+    # labels = [
+    #     "Hebbian Decreasing",
+    #     "Normalization Decreasing"
+    # ]
+    # title = "Instant Model Accuracy On Fonts Learnability"
+    # combine_plots(data_files,labels,['blue','green'],title, "Epochs", "Accuracy")
