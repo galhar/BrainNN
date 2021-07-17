@@ -1,5 +1,10 @@
 # Writer: Gal Harari
 # Date: 14/12/2020
+DISABLE_SCIVIEW = True
+if DISABLE_SCIVIEW:
+    import matplotlib
+
+    matplotlib.use("TKAgg")
 from src.Identity_task.identity_prediction import IdentityDataLoader, N
 from src.brainNN import BrainNN
 from src.hooks import ClassesEvalHook, SaveByEvalHook
@@ -44,7 +49,7 @@ def create_trainer(epochs=17):
 
     net = BrainNN(configuration_args)
     optimizer = DefaultOptimizer(net=net, epochs=epochs, sample_reps=10, sharp=True,
-                                 inc_prob=0.9, dec_prob=0.0)
+                                 inc_prob=1, dec_prob=0.0)
     trainer = Trainer(net, data_loader, optimizer, verbose=True)
     return net, trainer
 
@@ -54,8 +59,9 @@ def identity_evaluation(epochs=6):
     trainer.register_hook(
         lambda trainer: ClassesEvalHook(trainer, IdentityDataLoader(batched=False,
                                                                     amp=70),
-                                        vis_last_ep=True))
+                                        vis_last_ep=False))
     trainer.train()
+    net.plot_history()
     tot_acc_str, cls_acc_str = ClassesEvalHook.TOT_ACC_STR, ClassesEvalHook.CLS_ACC_STR
     return [trainer.storage[cls_acc_str], trainer.storage[tot_acc_str]]
 

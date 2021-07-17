@@ -38,9 +38,16 @@ def get_paired_covered_perm_rep(i, n):
     return rep
 
 
+def get_paired_first_overlap_perm_rep(i, n):
+    rep = np.zeros((n,))
+    rep[i] = 1
+    rep[0] = 1
+    return rep
+
+
 class IdentityDataLoader(ClassesDataLoader):
 
-    def __init__(self, batched=False, shuffle=True, noise_std=0, amp=30):
+    def __init__(self, batched=False, shuffle=True, noise_std=0, amp=50):
         """
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the
         model to be more robust, like dropout in ANNs. Noise can be generated during
@@ -48,5 +55,5 @@ class IdentityDataLoader(ClassesDataLoader):
         better.
         """
         self.amp = amp
-        data_array = [(i, amp * get_tripled_perm_rep(i, N)) for i in range(N)]
+        data_array = [(i, amp * get_paired_first_overlap_perm_rep(i, N)) for i in range(N)]
         super().__init__(data_array, batched, shuffle, noise_std)

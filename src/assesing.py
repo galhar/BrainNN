@@ -288,7 +288,7 @@ def combine_plots(load_files, labels, colors, title="", x_label="", y_label=""):
         plt.xticks(x, [l + 1 for l in x])
         plt.annotate('%0.2f' % avg[-1], xy=(x[-1], avg[-1]), xytext=(3, -5 + (1-i)*5),
                      xycoords='data', textcoords='offset points', c=colors[i])
-        plt.annotate('%0.2f' % avg[0], xy=(x[0], avg[0]), xytext=(-30, 0),
+        plt.annotate('%0.2f' % avg[0], xy=(x[0], avg[0]), xytext=(-30, -5 + (1-i)*5),
                      xycoords='data', textcoords='offset points', c=colors[i])
 
     # Remove errorbars from the legend
@@ -314,20 +314,26 @@ def combine_plots(load_files, labels, colors, title="", x_label="", y_label=""):
 
 
 if __name__ == '__main__':
-    load_path = 'Fonts accuracy over 10 nets, 2 layers, with decrease  records ' \
-                '07_07_21 02_10.json'
+    # load_path = 'Fonts accuracy over 10 nets, 2 layers, with decrease  records ' \
+    #             '07_07_21 02_10.json'
     check_func = fonts_trainer_evaluation
-    setattr(check_func, 'title', 'Fonts accuracy over 10 nets, 2 layers, low sample rep')
+    setattr(check_func, 'title', 'Fonts accuracy over 10 nets, 3 layers, 100 hidden '
+                                 'winners, NO SKIP connections')
     setattr(check_func, 'x_label', 'Epochs')
     setattr(check_func, 'y_label', 'Accuracy')
     average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)
     # data_files = [
-    #     #"Fonts accuracy over 10 nets, 2 layers 30 ep  records 07_09_21 01_28.json",
-    #     "Fonts accuracy over 10 nets, 2 layers, with decrease  records 07_07_21 02_10.json"
+    #     "Fonts accuracy over 10 nets, 3 layers, 100 hidden winners  records 07_15_21 23_58.json",
+    #     "Fonts accuracy over 10 nets, 2 layers, low sample rep  records 07_14_21 "
+    #     "00_26.json",
+    #     # "Fonts accuracy over 10 nets, 2 layers 30 ep  records 07_09_21 01_28.json"
+    #
     # ]
     # labels = [
-    #     "Hebbian Decreasing",
-    #     "Normalization Decreasing"
+    #     "3 layers, 6 output spikes",
+    #     "2 layers, 6 output spikes",
+    #     "2 layers, 11 output spikes",
     # ]
     # title = "Instant Model Accuracy On Fonts Learnability"
-    # combine_plots(data_files,labels,['blue','green'],title, "Epochs", "Accuracy")
+    # combine_plots(data_files,labels,['blue','green', 'purple'],title, "Epochs",
+    #               "Accuracy")

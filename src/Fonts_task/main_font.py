@@ -28,9 +28,9 @@ def create_trainer(data_loader, epochs=17):
     rf = [BrainNN.RF, [kernel, stride, into_n, white]]
 
     nodes_details = [img_len, 500, output_shape]
-    IINs_details = [(1,), (100,), (1,)]
-    winners = [0, 1]
-    conn_mat = [[fc, fc, fc],
+    IINs_details = [(1,), (1,), (1,)]
+    winners = [0, 100, 1]
+    conn_mat = [[fc, fc, None],
                 [None, fc, fc],
                 [None, fc, fc]]
     img_dim = (IMG_SIZE, IMG_SIZE)
