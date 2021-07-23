@@ -7,10 +7,45 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import torch
 from torchvision import datasets
+import idx2numpy
 
 from src.utils.train_utils import ClassesDataLoader
 
 IMG_SIZE = 20
+
+MNIST_dir = 'MNIST_data'
+training_images_filename = 'train-images-idx3-ubyte'
+training_labels_filename = 'train-labels-idx1-ubyte'
+test_images_filename = 't10k-images-idx3-ubyte'
+test_labels_filename = 't10k-labels-idx1-ubyte'
+
+
+def generate_mnist_data(external_input_strength):
+    training_images_path = os.path.join(MNIST_dir, training_images_filename)
+    training_labels_path = os.path.join(MNIST_dir, training_labels_filename)
+    test_images_path = os.path.join(MNIST_dir, test_images_filename)
+    test_labels_path = os.path.join(MNIST_dir, test_labels_filename)
+
+    training_samples = idx2numpy.convert_from_file(training_images_path)
+    input_size = training_samples.shape[1] * training_samples.shape[2]
+    m = training_samples.shape[0]
+    training_samples = np.transpose(training_samples, axes=[1, 2, 0])
+    training_samples = np.reshape(training_samples, (input_size, m))
+    training_samples = training_samples / 255
+    training_samples = training_samples * external_input_strength
+
+    training_labels = idx2numpy.convert_from_file(training_labels_path)
+
+    test_samples = idx2numpy.convert_from_file(test_images_path)
+    m = test_samples.shape[0]
+    test_samples = np.transpose(test_samples, axes=[1, 2, 0])
+    test_samples = np.reshape(test_samples, (input_size, m))
+    test_samples = test_samples / 255
+    test_samples = test_samples * external_input_strength
+
+    test_labels = idx2numpy.convert_from_file(test_labels_path)
+
+    return training_samples, training_labels, test_samples, test_labels
 
 
 def flatten_to_image(flat_img):
@@ -54,13 +89,20 @@ class FontDataLoader(ClassesDataLoader):
         :param type:
         :return: array of the loaded data
         """
+        data_array = []
+        if type(data_dir) == list:
+            for single_data_dir in data_dir:
+                FontDataLoader.get_image_from_folder(data_array, single_data_dir)
+        else:
+            FontDataLoader.get_image_from_folder(data_array, data_dir)
+        return data_array
 
+
+    @staticmethod
+    def get_image_from_folder(data_array, data_dir):
         if data_dir[-1] != '/' and data_dir[-1] != '\\':
             data_dir += '/'
-
         divider = FontDataLoader._divider_dict[IMG_SIZE]
-
-        data_array = []
         for file_name in os.listdir(data_dir):
             if divider in file_name:
                 label = file_name.split(divider)[0]
@@ -73,10 +115,9 @@ class FontDataLoader(ClassesDataLoader):
                 pad_image[l_pad:r_pad, top_pad:bottom_pad] = img
                 # Turn black into the high values, and white to the low value,
                 # and increase the signal
-                pad_image = 1/4 * (1 - pad_image)
+                pad_image = 1 / 4 * (1 - pad_image)
 
                 data_array.append((label, pad_image.flatten()))
-        return data_array
 
 
 class MNISTDataLoader(ClassesDataLoader):
@@ -84,7 +125,7 @@ class MNISTDataLoader(ClassesDataLoader):
 
 
     def __init__(self, idxs_lim=(0, 400), small=False, batched=False, shuffle=True,
-                 noise_std=0, amp=1):
+                 noise_std=0, amp=1, train=False):
         """
         :param noise_std: This std is multiplied by the amplitude. Noise might cause the
         model to be more robust, like dropout in ANNs. Noise can be generated during
@@ -93,7 +134,7 @@ class MNISTDataLoader(ClassesDataLoader):
         """
         torch_data_array = []
         data_array = []
-        dataset = datasets.MNIST('./data', train=False, download=True)
+        dataset = datasets.MNIST('./data', train=train, download=False)
 
         if small:
             labels_to_fill = [i for i in range(10)]
@@ -136,5 +177,5 @@ class MNISTDataLoader(ClassesDataLoader):
 
 
 if __name__ == '__main__':
-    data_loader = MNISTDataLoader(small=True)
+    data_loader = MNISTDataLoader(small=False, idxs_lim=(0,60000), train=True)
     data_loader.explore_images(matplotl=True)
