@@ -87,6 +87,43 @@ class EvalNetWrapper(NetWrapperBase):
         return self._norm_func(out_vec)
 
 
+class EvalSpikePatternNetWrapper(NetWrapperBase):
+
+    def __init__(self, net, record_l, noise_std=0, req_shots_num=5, norm_func=np_softmax):
+        super().__init__(net, req_shots_num=req_shots_num, noise_std=noise_std)
+        self._norm_func = norm_func
+        self._record_l = record_l
+
+
+    def __call__(self, inp):
+        """
+        Finish iteration when there are more than req_shots_num from some label neuron
+        :param inp:
+        :return:
+        """
+        net = self.brainNN
+        out_vec = np.zeros(net.get_output(get_shots=True).shape)
+        # Remove INs from the layer record
+        record_l_ex_n = net._IINs_start_per_popul[self._record_l]
+        spike_count = np.zeros(net._current_shots[self._record_l][0][
+                               :record_l_ex_n].shape)
+        while np.max(out_vec) < self._req_shot_num:
+            # insert sensory input
+            sensory_input = np.abs(np.random.normal(inp, self._n_std))
+            net.set_sensory_input(sensory_input)
+
+            net.step()
+
+            # Get the spike count
+            spike_count += net._current_shots[self._record_l][0][:record_l_ex_n]
+
+            # Get the output
+            out_vec += net.get_output(get_shots=True)
+
+        # Return normalize vec
+        return self._norm_func(out_vec), spike_count
+
+
 class DataLoaderBase:
 
     def __next__(self):
@@ -119,6 +156,7 @@ class ClassesDataLoader(DataLoaderBase):
         self._stopped_iter = True
 
         self.classes = None
+        self.labels = None
         self.classes_neurons = None
         self.neuron_to_class_dict = None
         self.samples = None
@@ -130,10 +168,12 @@ class ClassesDataLoader(DataLoaderBase):
 
 
     def build_from_data_array(self, data_array):
-        self.classes = [l for l, sample in data_array]
-        self.classes_neurons = [i for i in range(len(data_array))]
+        self.classes = list(set([l for l, sample in data_array]))
+        self.classes_neurons = [i for i in range(len(self.classes))]
         self.neuron_to_class_dict = {self.classes_neurons[i]: self.classes[i] for i in
-                                     range(len(data_array))}
+                                     range(len(self.classes))}
+        self.cls_to_n_dict = {v: k for k, v in self.neuron_to_class_dict.items()}
+        self.labels = [self.cls_to_n_dict[l] for l, sample in data_array]
         self.samples = [self._noise(sample) for l, sample in data_array]
 
 
@@ -159,10 +199,10 @@ class ClassesDataLoader(DataLoaderBase):
         self._stopped_iter = False
 
         if self._shuffle:
-            p = np.random.permutation(len(self.classes_neurons))
-            return [[self.samples[i] for i in p], [self.classes_neurons[i] for i in p]]
+            p = np.random.permutation(len(self.samples))
+            return [[self.samples[i] for i in p], [self.labels[i] for i in p]]
 
-        return [self.samples, self.classes_neurons]
+        return [self.samples, self.labels]
 
 
     def _batched_next(self):
@@ -302,7 +342,8 @@ class Trainer:
 
                     if self._verbose:
                         # Counting on that the loader is of type ClassesDataLoader
-                        print(self._data_loader.neuron_to_class_dict[l])
+                        # print(self._data_loader.neuron_to_class_dict[l])
+                        pass
 
                     self._net_wrapper(sample, l)
 

@@ -7,6 +7,7 @@ from src.binary_encoding_task.main_binary import trainer_evaluation, \
 from src.Identity_task.main_identity import identity_evaluation
 from src.Fonts_task.main_font import fonts_trainer_evaluation, mnist_train_evaluate, \
     mnist_output_dist
+from src.Fonts_task.multilpe_fonts_exp import multifonts_evaluation
 from src.utils.general_utils import save_json, load_json, lighten_color, update_prop
 
 import numpy as np
@@ -100,9 +101,9 @@ def average_over_nets(net_data_func_with_attr, iterations=20, is_3D=False,
 
     if not load:
         iterations_vec = []
-        for i in tqdm(range(iterations)):
+        for i in range(iterations):
             iterations_vec.append(net_data_func_with_attr())
-            # print(f"Assessing func: {i + 1}\\{iterations}")
+            print(f"Assessing func: {i + 1}\\{iterations}")
 
         current_time = timestamp()
         save_json(iterations_vec, DATA_PATH + f"{titles.get('title', '')} records"
@@ -316,24 +317,26 @@ def combine_plots(load_files, labels, colors, title="", x_label="", y_label=""):
 if __name__ == '__main__':
     # load_path = 'Fonts accuracy over 10 nets, 2 layers, with decrease  records ' \
     #             '07_07_21 02_10.json'
-    check_func = fonts_trainer_evaluation
-    setattr(check_func, 'title', 'Fonts accuracy over 10 nets, 3 layers, 100 hidden '
-                                 'winners, NO SKIP connections')
-    setattr(check_func, 'x_label', 'Epochs')
-    setattr(check_func, 'y_label', 'Accuracy')
-    average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)
-    # data_files = [
-    #     "Fonts accuracy over 10 nets, 3 layers, 100 hidden winners  records 07_15_21 23_58.json",
-    #     "Fonts accuracy over 10 nets, 2 layers, low sample rep  records 07_14_21 "
-    #     "00_26.json",
-    #     # "Fonts accuracy over 10 nets, 2 layers 30 ep  records 07_09_21 01_28.json"
-    #
-    # ]
-    # labels = [
-    #     "3 layers, 6 output spikes",
-    #     "2 layers, 6 output spikes",
-    #     "2 layers, 11 output spikes",
-    # ]
-    # title = "Instant Model Accuracy On Fonts Learnability"
-    # combine_plots(data_files,labels,['blue','green', 'purple'],title, "Epochs",
-    #               "Accuracy")
+    # check_func = multifonts_evaluation
+    # setattr(check_func, 'title', 'Multiple fonts, 2 layer, 5 instead of 7 sample_rep')
+    # setattr(check_func, 'x_label', 'Epochs')
+    # setattr(check_func, 'y_label', 'Accuracy')
+    # average_over_nets(check_func, iterations=10)#, scatter=False, load=load_path)
+    data_files = [
+        # "Fonts accuracy over 10 nets, 3 layers, 100 hidden winners, NO SKIP connections  records 07_18_21 17_06.json",
+        # "Fonts accuracy over 10 nets, 2 layers  records 07_06_21 02_15.json",
+        # "Fonts accuracy over 10 nets, 2 layers 30 ep  records 07_09_21 01_28.json",
+        # "Fonts accuracy over 10 nets, 2 layers, with decrease 30 ep  records 07_09_21 "
+        # "03_07.json",
+        "Multiple fonts, 2 layer, 5 instead of 7 sample_rep  records 07_22_21 17_02.json",
+        # "Multiple fonts, 2 layer  records 07_22_21 15_00.json"
+
+    ]
+    labels = [
+        "Normalization Decreasing",
+        "Hebbian Decreasing",
+        "2 layers, 11 output spikes",
+    ]
+    title = "2-Layer Instant Model Generalization Accuracy"
+    combine_plots(data_files,labels,['blue','green', 'purple'],title, "Epochs",
+                  "Accuracy")

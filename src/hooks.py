@@ -2,7 +2,7 @@
 # Date: 18/11/2020
 import weakref
 from tqdm import tqdm
-from src.utils.train_utils import EvalNetWrapper
+from src.utils.train_utils import EvalNetWrapper, EvalSpikePatternNetWrapper
 from src.utils.general_utils import save_json, find_save_name
 import numpy as np
 
@@ -138,7 +138,8 @@ class ClassesEvalHook(HookBase):
 
                 if self._verbose:
                     # Counting on that the loader is of type ClassesDataLoader
-                    print(self._data_loader.neuron_to_class_dict[l])
+                    # print(self._data_loader.neuron_to_class_dict[l])
+                    pass
 
                 output = self._net_wrapper(sample)
                 pred_y = np.argmax(output)
@@ -179,7 +180,6 @@ class ClassesEvalHook(HookBase):
                   self.save_name)
 
 
-
     def visualize(self):
         self._net.freeze()
         self._net.set_visualization('debug')
@@ -194,6 +194,82 @@ class ClassesEvalHook(HookBase):
 
                 self._net.zero_neurons()
 
+        self._net.unfreeze()
+
+
+class ClassesEvalSpikeCountHook(HookBase):
+    CLS_ACC_STR = 'Classes accuracy over epochs'
+    TOT_ACC_STR = 'Total accuracy over epochs'
+    SPIKE_COUNT = 'Spike count per sample over epochs'
+
+
+    def __init__(self, trainer, data_loader, record_l=1, req_shots_num=5):
+        """
+
+        :param trainer:
+        :param data_loader: In order to zero between checks, put each sample in a
+        different batch. It zeros the neurons between batches.
+        :param req_shots_num:
+        :param noise_std:
+        """
+        super(ClassesEvalSpikeCountHook, self).__init__(trainer)
+        self._ep_idx = 0
+
+        self._req_shots_n = req_shots_num
+        self._net = trainer.net
+        self._data_loader = data_loader
+        self._net_wrapper = EvalSpikePatternNetWrapper(self._net, record_l=record_l,
+                                                       req_shots_num=req_shots_num)
+
+        self._last_epoch = self._trainer.optimizer.epochs
+        self._verbose = self._trainer._verbose
+
+        self._cls_lst = self._data_loader.classes_neurons
+        self._trainer.storage[ClassesEvalHook.CLS_ACC_STR] = []
+        self._trainer.storage[ClassesEvalHook.TOT_ACC_STR] = []
+        self._trainer.storage[ClassesEvalSpikeCountHook.SPIKE_COUNT] = []
+
+
+    def after_epoch(self):
+        if self._verbose:
+            print("[*] Measuring Accuracy...")
+        self._net.freeze()
+        class_correct = np.zeros_like(self._cls_lst)
+        class_total = np.zeros_like(self._cls_lst)
+        spike_count_dict = {}
+        for sample_batch, labels in self._data_loader:
+            samples_idxs = range(len(sample_batch))
+            if self._verbose and not self._data_loader._batched:
+                samples_idxs = tqdm(samples_idxs)
+
+            for i in samples_idxs:
+                sample, l = sample_batch[i], labels[i]
+
+                # Counting on that the loader is of type ClassesDataLoader
+                cur_cls_name = self._data_loader.neuron_to_class_dict[l]
+                if self._verbose:
+                    # Counting on that the loader is of type ClassesDataLoader
+                    print(cur_cls_name)
+
+                output, spike_count = self._net_wrapper(sample)
+                pred_y = np.argmax(output)
+
+                spike_count_dict[cur_cls_name] = spike_count
+                class_correct[l] += 1 if pred_y == l else 0
+                class_total[l] += 1
+                self._net.zero_neurons()
+
+        classes_acc = 100 * class_correct / class_total
+        mean_acc = np.mean(classes_acc)
+
+        # Save to trainer history
+        self._trainer.storage[ClassesEvalSpikeCountHook.CLS_ACC_STR].append(classes_acc)
+        self._trainer.storage[ClassesEvalSpikeCountHook.TOT_ACC_STR].append(mean_acc)
+        self._trainer.storage[ClassesEvalSpikeCountHook.SPIKE_COUNT].append(
+            spike_count_dict)
+        print("[*] Mean accuracy =", mean_acc)
+        print("[*] Spike count =", spike_count_dict)
+        self._ep_idx += 1
         self._net.unfreeze()
 
 

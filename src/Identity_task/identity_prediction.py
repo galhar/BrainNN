@@ -7,7 +7,7 @@ import cv2
 
 from src.utils.train_utils import ClassesDataLoader
 
-N = 10
+N = 9
 
 
 def get_rep(i, n):
